@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python clean_website_urls.py:*)",
+      "Bash(python -c:*)",
+      "Bash(more:*)"
+    ]
+  }
+}
