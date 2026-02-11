@@ -232,6 +232,10 @@ Legend:
 
 ## 📅 IMPLEMENTATION PHASES
 
+**Git Workflow:** Commit after each task completion with descriptive message.
+
+---
+
 ### ✅ Phase 1: Data Merge (8-12 hours)
 
 #### Task 1.1: Create Source Mapping Configuration
@@ -239,7 +243,43 @@ Legend:
 
 **What:** Map column names from all 3 sources to universal field names.
 
-**Why:** Handle different column names across sources (e.g., "City" vs "Headquarters city").
+**Why:** Handle different column names across sources and enable generic merge script.
+
+**Steps:**
+1. Create `config/` directory
+2. Write `source_mappings.py` with UNIVERSAL_FIELDS and SOURCE_MAPPINGS dict
+3. Test: Import and verify mappings for all 3 sources
+
+**Success Criteria:**
+- ✅ File created: `config/source_mappings.py`
+- ✅ UNIVERSAL_FIELDS list defined (11 common fields)
+- ✅ SOURCE_MAPPINGS dict with all 3 sources (AS, GF, TM)
+- ✅ All columns mapped correctly (no typos, match actual CSV column names)
+- ✅ Can import without errors: `python -c "from config.source_mappings import SOURCE_MAPPINGS"`
+
+**Validation:**
+```python
+# Run this to validate
+python -c "
+from config.source_mappings import SOURCE_MAPPINGS, UNIVERSAL_FIELDS
+import pandas as pd
+
+# Verify all sources present
+assert 'agencyspotter' in SOURCE_MAPPINGS
+assert 'goodfirms' in SOURCE_MAPPINGS
+assert 'themanifest' in SOURCE_MAPPINGS
+
+# Verify mappings match actual CSV columns
+df_as = pd.read_csv('agencies_extracted_agencyspotter_20260126_cleaned.csv', nrows=1)
+for field, col_name in SOURCE_MAPPINGS['agencyspotter'].items():
+    if col_name:
+        assert col_name in df_as.columns, f'{col_name} not in AS columns'
+
+print('✅ All mappings valid!')
+"
+```
+
+**Git Commit:** `git commit -m "feat: add source mapping configuration for 3 directories"`
 
 **Status:** ⏳ Pending
 
@@ -249,20 +289,80 @@ Legend:
 **File:** `merge_agencies.py`
 
 **What:**
-1. Load all 3 CSVs
+1. Load all 3 CSVs using source mappings
 2. Normalize website URLs (remove http://, www., trailing slashes)
 3. Find duplicates:
    - **Pass 1:** Exact website URL match
    - **Pass 2:** Fuzzy name match (85%+ similarity) for agencies without websites
 4. Merge logic:
-   - **Universal fields:** Pick best value (prefer AS for contact info)
-   - **Source-specific data:** Store ALL fields in JSONB
-   - **Computed fields:** avg_rating (average of all sources), total_reviews (sum)
+   - **Universal fields:** Pick best value (prefer AS for contact info, longest for description)
+   - **Source-specific data:** Store ALL fields in JSONB strings
+   - **Computed fields:**
+     - `services_merged` (union of all unique services)
+     - `avg_rating` (average of all sources)
+     - `total_reviews` (sum of all reviews)
+     - `employee_count_min/max` (parsed from range)
 5. Export to `merged_agencies_master.csv`
 
-**Expected Output:**
-- ~8,000-10,000 unique agencies
-- Deduplication report (how many matches per source)
+**Success Criteria:**
+- ✅ File created: `merge_agencies.py`
+- ✅ Loads all 3 CSVs without errors
+- ✅ Deduplication logic implemented (website + fuzzy name)
+- ✅ Merge creates ~8,000-10,000 unique agencies
+- ✅ Output CSV has all required columns
+- ✅ No duplicate website URLs in output
+- ✅ Deduplication stats printed (how many from each source, how many matches)
+- ✅ Progress bar or logging shows merge progress
+
+**Validation:**
+```bash
+# Run merge script
+python merge_agencies.py
+
+# Should output:
+# Loading sources...
+# ✓ AgencySpotter: 1,576 agencies
+# ✓ GoodFirms: 2,355 agencies
+# ✓ TheManifest: 10,226 agencies
+# Total: 14,157 agencies
+#
+# Deduplicating...
+# ✓ Exact website matches: ~800-1,200
+# ✓ Fuzzy name matches: ~300-500
+#
+# Merging...
+# ✓ Merged agencies: 8,000-10,000
+# ✓ Exported to: merged_agencies_master.csv
+```
+
+**Output File Check:**
+```python
+# Validate output
+python -c "
+import pandas as pd
+
+df = pd.read_csv('merged_agencies_master.csv')
+
+# Check row count
+assert 8000 <= len(df) <= 10000, f'Expected 8K-10K, got {len(df)}'
+
+# Check no duplicate websites
+assert df['website_url'].notna().sum() == df['website_url'].nunique(), 'Duplicate websites found!'
+
+# Check required columns exist
+required = ['name', 'website_url', 'city', 'state', 'sources', 'source_count', 'avg_rating', 'total_reviews']
+for col in required:
+    assert col in df.columns, f'Missing column: {col}'
+
+# Check source_count distribution
+print('Source distribution:')
+print(df['source_count'].value_counts())
+
+print('✅ Output CSV valid!')
+"
+```
+
+**Git Commit:** `git commit -m "feat: implement multi-source merge script with deduplication"`
 
 **Status:** ⏳ Pending
 
@@ -270,18 +370,75 @@ Legend:
 
 #### Task 1.3: Run Merge and Validate Results
 **What:**
-1. Execute merge script
-2. Validate deduplication stats
-3. Review sample merged records
-4. Check data quality scores
-5. Export deduplication report
+1. Execute merge script with all 3 sources
+2. Analyze deduplication statistics
+3. Manually review 10-20 sample merged records
+4. Validate data quality scores
+5. Check for any parsing errors
+6. Export deduplication report
 
-**Validation Checklist:**
-- [ ] Total unique agencies in expected range (8K-10K)
-- [ ] No duplicate website URLs
-- [ ] All source data preserved in JSONB
-- [ ] Computed fields correct (avg_rating, total_reviews)
-- [ ] Sample 10 agencies manually
+**Success Criteria:**
+- ✅ Merge script runs without errors
+- ✅ Output: `merged_agencies_master.csv` created
+- ✅ Total agencies: 8,000-10,000 (within expected range)
+- ✅ Deduplication rate: 30-40% (14K → 8-10K)
+- ✅ Source distribution looks reasonable:
+  - ~20-30% from AS only
+  - ~30-40% from GF only
+  - ~40-50% from TM only
+  - ~10-20% from 2+ sources
+- ✅ No critical data loss (all source fields preserved in JSON)
+- ✅ Computed fields look correct (ratings, reviews, services)
+- ✅ Sample 10 agencies manually verified
+- ✅ Deduplication report exported: `merge_report.json`
+
+**Validation Steps:**
+
+1. **Check overall stats:**
+```python
+python -c "
+import pandas as pd
+import json
+
+df = pd.read_csv('merged_agencies_master.csv')
+
+stats = {
+    'total_agencies': len(df),
+    'has_email': df['contact_email'].notna().sum(),
+    'has_phone': df['phone_number'].notna().sum(),
+    'has_website': df['website_url'].notna().sum(),
+    'source_distribution': df['source_count'].value_counts().to_dict(),
+    'avg_data_quality': df['data_quality_score'].mean(),
+}
+
+print(json.dumps(stats, indent=2))
+"
+```
+
+2. **Sample 10 random agencies:**
+```python
+python -c "
+import pandas as pd
+
+df = pd.read_csv('merged_agencies_master.csv')
+sample = df.sample(10)
+
+for _, row in sample.iterrows():
+    print(f'\n{row[\"name\"]} ({row[\"city\"]}, {row[\"state\"]})')
+    print(f'  Sources: {row[\"sources\"]} (count: {row[\"source_count\"]})')
+    print(f'  Rating: {row[\"avg_rating\"]} ({row[\"total_reviews\"]} reviews)')
+    print(f'  Email: {row[\"contact_email\"]}')
+    print(f'  Services: {row.get(\"services_merged\", \"N/A\")[:100]}...')
+"
+```
+
+3. **Check for duplicates:**
+```bash
+# Should return 0
+python -c "import pandas as pd; df = pd.read_csv('merged_agencies_master.csv'); print('Duplicate websites:', df['website_url'].duplicated().sum())"
+```
+
+**Git Commit:** `git commit -m "data: merge all 3 sources, output 8,500 unique agencies"`
 
 **Status:** ⏳ Pending
 
