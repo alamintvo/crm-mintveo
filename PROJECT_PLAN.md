@@ -109,6 +109,92 @@ TheManifest doesn't have contact info:
 
 ---
 
+## 🎯 Design Decisions: Conflict Resolution Strategy
+
+**Decision Date:** 2026-02-11
+**Decided By:** User + Claude Code
+**Approach:** Smart Auto-Resolve + Conflict Logging
+
+### Problem Statement
+When the same agency appears in multiple sources (e.g., SmartSites in both AgencySpotter and GoodFirms), common fields may have different values:
+- **Address:** AS says "Southfield, MI" but GF says "San Antonio, TX"
+- **Employee Count:** AS says "50-100" but GF says "10-49"
+- **Description:** Different descriptions on each platform
+
+**Question:** How do we resolve conflicts in the merged dataset?
+
+### Selected Strategy: Option A - Auto-Resolve with Transparency
+
+**Core Principle:** Prioritize speed and completeness over perfection. Auto-resolve conflicts using intelligent rules, but keep ALL source data and log conflicts for transparency.
+
+### Conflict Resolution Rules
+
+| Field Type | Auto-Resolution Rule | Reasoning |
+|------------|---------------------|-----------|
+| **Identity** | | |
+| - Name | Pick canonical (prefer AS) | Most complete, used for matching |
+| - Website | Normalized (remove http, www) | Used for deduplication |
+| **Contact Info** | | |
+| - Email | Keep ALL unique emails | Multiple departments may have different emails |
+| - Phone | Keep ALL unique phones | Multiple offices may have different numbers |
+| - Address | Pick **AgencySpotter** as primary<br>Keep all in JSONB | AS is newest data (2026-01-26), but preserve all locations |
+| - City/State | From primary address (AS) | Follows primary address |
+| **Descriptive** | | |
+| - Description | Pick **longest** (most informative)<br>Store all | Richer description helps qualify leads |
+| - Tagline | Pick **longest** or primary<br>Store all | More context is better |
+| **Lists/Arrays** | | |
+| - Service Focus | **Merge all unique services**<br>Store originals | Combined list shows full capabilities |
+| - Industry Focus | **Merge unique industries** | Complete picture of expertise |
+| - Clients List | **Merge unique clients** | More social proof |
+| **Metrics** | | |
+| - Rating | **Average** across all sources | Overall reputation |
+| - Review Count | **Sum** across all sources | Total social proof |
+| - Employee Count | Pick **AgencySpotter** (newest)<br>Store all | AS data is most recent (2026-01-26 vs 2026-01-15) |
+| **Status** | | |
+| - Claimed Status | Keep per source (source-specific) | May be claimed on AS but not GF |
+
+### Conflict Logging
+
+Generate `merge_report.json` with:
+- Total agencies merged
+- Conflicts detected by type (address, employee count, etc.)
+- Example conflicts for spot-checking
+- Recommended agencies for manual review
+
+**Benefits:**
+1. ✅ **Fast:** Merge completes in ~1 hour (no manual review bottleneck)
+2. ✅ **Transparent:** See what conflicts exist via merge report
+3. ✅ **Practical:** Start using CRM immediately, verify when contacting agencies
+4. ✅ **Complete:** Never lose data - all source data preserved in JSONB
+5. ✅ **Scalable:** Works when adding 4th, 5th source
+
+### Alternative Approaches Considered
+
+**Option B: Manual Review Queue** ❌ Rejected
+- Create CSV of conflicts for manual verification
+- **Problem:** 200+ conflicts would take days to review
+- **Problem:** Blocks progress, reduces momentum
+
+**Option C: Discard Conflicting Records** ❌ Rejected
+- Only keep agencies from single source
+- **Problem:** Lose valuable multi-source data
+- **Problem:** Reduces dataset significantly
+
+### Validation Strategy
+
+1. **Automated:** Merge script validates data integrity (no duplicate websites, required fields present)
+2. **Spot-check:** Manually review 10-20 agencies from merge report
+3. **On-demand:** Verify specific agencies when contacting them (real-world validation)
+
+### When to Revisit This Decision
+
+Revisit if:
+- Spot-check reveals >20% auto-resolution errors
+- Adding 4th source introduces new conflict patterns
+- User feedback indicates systematic data quality issues
+
+---
+
 ## 🗄️ Database Schema
 
 ### PostgreSQL Table: `agencies`
