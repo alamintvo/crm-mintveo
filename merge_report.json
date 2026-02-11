@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-02-12T00:42:31.480630",
+  "merge_summary": {
+    "total_input": 14157,
+    "total_output": 12919,
+    "deduplication_rate": 8.7,
+    "source_distribution": {
+      "1_source": 12075,
+      "2_sources": 788,
+      "3_sources": 56
+    }
+  },
+  "conflicts": {
+    "total": 0,
+    "by_type": {},
+    "examples": []
+  },
+  "recommendations": []
+}
