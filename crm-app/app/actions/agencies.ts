@@ -20,10 +20,43 @@ export type PaginationParams = {
   pageSize: number
 }
 
+type Agency = {
+  id: number
+  name: string
+  websiteUrl: string | null
+  linkedinUrl: string | null
+  contactEmail: string | null
+  phoneNumber: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+  employeeCount: string | null
+  avgRating: number | null
+  totalReviews: number | null
+  contactStatus: string
+  sources: string[]
+  sourceCount: number
+  tags: string[]
+  lastContactDate: Date | null
+  agencyspotterUrl: string | null
+  goodfirmsUrl: string | null
+  themanifestUrl: string | null
+}
+
 export async function getAgencies(
   filters: AgencyFilters = {},
   pagination: PaginationParams = { page: 1, pageSize: 50 }
-) {
+): Promise<{
+  success: boolean
+  data: Agency[]
+  pagination: {
+    page: number
+    pageSize: number
+    totalCount: number
+    totalPages: number
+  }
+  error?: string
+}> {
   try {
     // Build WHERE conditions
     const conditions: string[] = []
@@ -88,10 +121,14 @@ export async function getAgencies(
     const [agencies, countResult] = await Promise.all([
       sql`
         SELECT
-          id, name, website_url as "websiteUrl", contact_email as "contactEmail",
-          phone_number as "phoneNumber", city, state, country, employee_count as "employeeCount",
+          id, name, website_url as "websiteUrl", linkedin_url as "linkedinUrl",
+          contact_email as "contactEmail", phone_number as "phoneNumber",
+          city, state, country, employee_count as "employeeCount",
           avg_rating as "avgRating", total_reviews as "totalReviews", contact_status as "contactStatus",
-          sources, source_count as "sourceCount", tags, last_contact_date as "lastContactDate"
+          sources, source_count as "sourceCount", tags, last_contact_date as "lastContactDate",
+          agencyspotter_data->>'Profile URL' as "agencyspotterUrl",
+          goodfirms_data->>'Profile URL' as "goodfirmsUrl",
+          themanifest_data->>'Profile URL' as "themanifestUrl"
         FROM agencies
         ${sql.unsafe(whereClause)}
         ORDER BY name ASC
@@ -103,10 +140,28 @@ export async function getAgencies(
     const totalCount = Number(countResult[0].count)
     const totalPages = Math.ceil(totalCount / pagination.pageSize)
 
-    // Convert Decimal/string to number for avgRating
-    const agenciesFormatted = agencies.map((agency: any) => ({
-      ...agency,
+    // Convert Decimal/string to number for avgRating and ensure proper types
+    const agenciesFormatted: Agency[] = agencies.map((agency) => ({
+      id: agency.id,
+      name: agency.name,
+      websiteUrl: agency.websiteUrl,
+      linkedinUrl: agency.linkedinUrl,
+      contactEmail: agency.contactEmail,
+      phoneNumber: agency.phoneNumber,
+      city: agency.city,
+      state: agency.state,
+      country: agency.country,
+      employeeCount: agency.employeeCount,
       avgRating: agency.avgRating ? Number(agency.avgRating) : null,
+      totalReviews: agency.totalReviews,
+      contactStatus: agency.contactStatus,
+      sources: agency.sources || [],
+      sourceCount: agency.sourceCount,
+      tags: agency.tags || [],
+      lastContactDate: agency.lastContactDate,
+      agencyspotterUrl: agency.agencyspotterUrl,
+      goodfirmsUrl: agency.goodfirmsUrl,
+      themanifestUrl: agency.themanifestUrl,
     }))
 
     return {
@@ -250,9 +305,9 @@ export async function getUniqueFilterValues() {
 
     return {
       success: true,
-      states: states.map((s: any) => s.state),
-      countries: countries.map((c: any) => c.country),
-      sources: sources.map((s: any) => s.source),
+      states: states.map((s) => s.state),
+      countries: countries.map((c) => c.country),
+      sources: sources.map((s) => s.source),
     }
   } catch (error) {
     console.error("Error fetching filter values:", error)

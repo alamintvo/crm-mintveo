@@ -2,16 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import {
-  ExternalLink,
-  Mail,
-  Phone,
-  MapPin,
-  Users,
-  Star,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,48 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { DataTable } from "@/components/ui/data-table"
+import { createColumns, type Agency } from "@/components/agencies-table-columns"
 import { CONTACT_STATUSES } from "@/lib/constants"
 import { AgencyDetailsDialog } from "@/components/agency-details-dialog"
 import { getAgencyById, updateContactStatus } from "@/app/actions/agencies"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-
-type Agency = {
-  id: number
-  name: string
-  websiteUrl: string | null
-  contactEmail: string | null
-  phoneNumber: string | null
-  city: string | null
-  state: string | null
-  country: string | null
-  employeeCount: string | null
-  avgRating: number | null
-  totalReviews: number | null
-  contactStatus: string
-  sources: string[]
-  sourceCount: number
-  tags: string[]
-  lastContactDate: Date | null
-}
 
 type AgenciesTableProps = {
   agencies: Agency[]
@@ -80,15 +40,6 @@ type AgenciesTableProps = {
     countries: string[]
     sources: string[]
   }
-}
-
-const contactStatusColors: Record<string, string> = {
-  not_contacted: "bg-gray-100 text-gray-800",
-  contacted: "bg-blue-100 text-blue-800",
-  in_progress: "bg-yellow-100 text-yellow-800",
-  qualified: "bg-green-100 text-green-800",
-  converted: "bg-purple-100 text-purple-800",
-  not_interested: "bg-red-100 text-red-800",
 }
 
 export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTableProps) {
@@ -115,12 +66,6 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
     updateFilters("search", searchTerm)
   }
 
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", newPage.toString())
-    router.push(`/agencies?${params.toString()}`)
-  }
-
   const handleAgencyClick = async (agencyId: number) => {
     setIsLoading(true)
     const result = await getAgencyById(agencyId)
@@ -134,23 +79,44 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
     }
   }
 
-  const handleStatusChange = async (agencyId: number, newStatus: string, event: React.MouseEvent) => {
-    event.stopPropagation() // Prevent row click
+  const handleStatusChange = async (agencyId: number, newStatus: string) => {
     const result = await updateContactStatus(agencyId, newStatus)
     if (result.success) {
-      // Refresh the page to show updated status
       router.refresh()
     }
   }
 
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", newPage.toString())
+    router.push(`/agencies?${params.toString()}`)
+  }
+
+  // Create columns with callbacks
+  const columns = React.useMemo(
+    () => createColumns(handleStatusChange, handleAgencyClick),
+    [router]
+  )
+
+  // Track visible row count for pagination display
+  const [visibleRowCount, setVisibleRowCount] = React.useState(agencies.length)
+
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Filter agencies by various criteria. Showing {pagination.totalCount} agencies.
-          </CardDescription>
+    <div className="space-y-6">
+      {/* Enhanced Filter Section */}
+      <Card className="border-primary/10 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold">Filters</CardTitle>
+              <CardDescription className="mt-1">
+                Filter agencies by various criteria
+              </CardDescription>
+            </div>
+            <Badge variant="secondary" className="text-base font-semibold px-3 py-1">
+              {pagination.totalCount.toLocaleString()} agencies
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -236,183 +202,57 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Agency Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Employees</TableHead>
-                  <TableHead>Rating</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sources</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agencies.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No agencies found. Try adjusting your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  agencies.map((agency) => (
-                    <TableRow
-                      key={agency.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleAgencyClick(agency.id)}
-                    >
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{agency.name}</div>
-                          {agency.websiteUrl && (
-                            <a
-                              href={agency.websiteUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              {new URL(agency.websiteUrl).hostname}
-                            </a>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1 text-sm">
-                          {agency.contactEmail && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              <span className="truncate max-w-[200px]">{agency.contactEmail}</span>
-                            </div>
-                          )}
-                          {agency.phoneNumber && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              <span>{agency.phoneNumber}</span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {agency.city || agency.state || agency.country ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            <span>
-                              {[agency.city, agency.state, agency.country]
-                                .filter(Boolean)
-                                .join(", ")}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {agency.employeeCount ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Users className="h-3 w-3 text-muted-foreground" />
-                            <span>{agency.employeeCount}</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {agency.avgRating ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                            <span>
-                              {Number(agency.avgRating).toFixed(1)}
-                              {agency.totalReviews && (
-                                <span className="text-muted-foreground ml-1">
-                                  ({agency.totalReviews})
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className={`cursor-pointer hover:opacity-80 ${contactStatusColors[agency.contactStatus] || ""}`}
-                            >
-                              {CONTACT_STATUSES.find((s) => s.value === agency.contactStatus)?.label ||
-                                agency.contactStatus}
-                            </Badge>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {CONTACT_STATUSES.map((status) => (
-                              <DropdownMenuItem
-                                key={status.value}
-                                onClick={(e) => handleStatusChange(agency.id, status.value, e)}
-                                className={agency.contactStatus === status.value ? "bg-muted" : ""}
-                              >
-                                {status.label}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {agency.sources.slice(0, 2).map((source, index) => (
-                            <Badge key={`${source}-${index}`} variant="secondary" className="text-xs">
-                              {source}
-                            </Badge>
-                          ))}
-                          {agency.sources.length > 2 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{agency.sources.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+      {/* Enhanced Data Table with Sorting */}
+      <Card className="shadow-sm">
+        <CardContent className="p-6">
+          <DataTable
+            columns={columns}
+            data={agencies}
+            searchKey="name"
+            searchPlaceholder="Search agencies..."
+            onRowClick={(agency) => handleAgencyClick(agency.id)}
+            onVisibleRowsChange={setVisibleRowCount}
+          />
         </CardContent>
       </Card>
 
+      {/* Server-Side Pagination */}
       {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page {pagination.page} of {pagination.totalPages} (
-            {pagination.totalCount} total agencies)
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <Card className="shadow-sm">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground font-medium">
+                Page <span className="text-foreground font-semibold">{pagination.page}</span> of{" "}
+                <span className="text-foreground font-semibold">{pagination.totalPages}</span>
+                <span className="mx-2">•</span>
+                Showing <span className="text-foreground font-semibold">{visibleRowCount}</span> of{" "}
+                <span className="text-foreground font-semibold">{pagination.totalCount.toLocaleString()}</span> total agencies
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {selectedAgency && (
