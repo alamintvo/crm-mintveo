@@ -39,6 +39,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { CONTACT_STATUSES } from "@/lib/constants"
+import { AgencyDetailsDialog } from "@/components/agency-details-dialog"
+import { getAgencyById } from "@/app/actions/agencies"
 
 type Agency = {
   id: number
@@ -87,6 +89,9 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
   const router = useRouter()
   const searchParams = useSearchParams()
   const [searchTerm, setSearchTerm] = React.useState(searchParams.get("search") || "")
+  const [selectedAgency, setSelectedAgency] = React.useState<any | null>(null)
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
 
   const updateFilters = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -108,6 +113,19 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     router.push(`/agencies?${params.toString()}`)
+  }
+
+  const handleAgencyClick = async (agencyId: number) => {
+    setIsLoading(true)
+    const result = await getAgencyById(agencyId)
+    setIsLoading(false)
+
+    if (result.success && result.data) {
+      setSelectedAgency(result.data)
+      setDialogOpen(true)
+    } else {
+      console.error("Failed to load agency details")
+    }
   }
 
   return (
@@ -230,7 +248,7 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
                     <TableRow
                       key={agency.id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => router.push(`/agencies/${agency.id}`)}
+                      onClick={() => handleAgencyClick(agency.id)}
                     >
                       <TableCell>
                         <div className="space-y-1">
@@ -365,6 +383,14 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
             </Button>
           </div>
         </div>
+      )}
+
+      {selectedAgency && (
+        <AgencyDetailsDialog
+          agency={selectedAgency}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        />
       )}
     </div>
   )

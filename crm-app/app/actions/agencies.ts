@@ -148,6 +148,65 @@ export async function getAgencies(
   }
 }
 
+export async function getAgencyById(id: number) {
+  try {
+    const agency = await prisma.agency.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        websiteUrl: true,
+        contactEmail: true,
+        phoneNumber: true,
+        linkedinUrl: true,
+        city: true,
+        state: true,
+        country: true,
+        description: true,
+        tagline: true,
+        employeeCount: true,
+        avgRating: true,
+        totalReviews: true,
+        sources: true,
+        servicesMerged: true,
+        industriesMerged: true,
+        clientsMerged: true,
+        agencyspotterData: true,
+        goodfirmsData: true,
+        themanifestData: true,
+        contactStatus: true,
+        tags: true,
+        notes: true,
+        lastContactDate: true,
+      },
+    })
+
+    if (!agency) {
+      return {
+        success: false,
+        error: "Agency not found",
+        data: null,
+      }
+    }
+
+    // Convert Decimal to number
+    return {
+      success: true,
+      data: {
+        ...agency,
+        avgRating: agency.avgRating ? Number(agency.avgRating) : null,
+      },
+    }
+  } catch (error) {
+    console.error("Error fetching agency:", error)
+    return {
+      success: false,
+      error: "Failed to fetch agency",
+      data: null,
+    }
+  }
+}
+
 export async function getUniqueFilterValues() {
   try {
     const [states, countries, sources] = await Promise.all([
