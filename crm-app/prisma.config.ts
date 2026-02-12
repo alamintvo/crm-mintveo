@@ -2,15 +2,12 @@ import 'dotenv/config'
 import { defineConfig, env } from 'prisma/config'
 
 export default defineConfig({
-  // Use schema from database folder
-  schema: '../database/prisma/schema.prisma',
-
-  // Don't need migrations in the app
+  schema: './prisma/schema.prisma',
   migrations: {
-    path: '../database/prisma/migrations',
+    path: './prisma/migrations',
   },
-
   datasource: {
+    // Read DATABASE_URL from parent directory .env file
     url: env('DATABASE_URL'),
   },
 })

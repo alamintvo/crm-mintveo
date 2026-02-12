@@ -34,7 +34,12 @@
       "Bash(gh run list:*)",
       "Bash(gh run watch:*)",
       "Bash(npx wrangler secret:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(npx wrangler tail:*)",
+      "WebFetch(domain:neon.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:medium.com)"
     ]
   }
 }

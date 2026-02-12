@@ -5,7 +5,7 @@
  * https://www.prisma.io/docs/orm/overview/databases/neon
  */
 
-import { PrismaClient } from '../generated/prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
 
 // Declare global type for Prisma client

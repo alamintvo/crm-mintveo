@@ -1,0 +1,84 @@
+// Prisma Schema for Multi-Source Agency CRM
+// Generated: 2026-02-12
+// Updated for Prisma 7
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Agency {
+  // Primary Key
+  id Int @id @default(autoincrement())
+
+  // === IDENTITY ===
+  name           String  @db.VarChar(500)
+  websiteUrl     String? @unique @map("website_url") @db.VarChar(500)
+
+  // === CONTACT INFO (Primary + ALL unique values) ===
+  contactEmail   String? @map("contact_email") @db.VarChar(255)
+  contactEmails  String[] @map("contact_emails") // Array of all unique emails
+  phoneNumber    String? @map("phone_number") @db.VarChar(50)
+  phoneNumbers   String[] @map("phone_numbers") // Array of all unique phones
+  fullAddress    String? @map("full_address") @db.Text
+  addresses      String[] // Array of all unique addresses
+  linkedinUrl    String? @map("linkedin_url") @db.VarChar(500)
+  linkedinUrls   String[] @map("linkedin_urls") // Array of all unique LinkedIn URLs
+  socialLinks    String[] @map("social_links") // All social media links
+
+  // === LOCATION (from primary address) ===
+  city    String? @db.VarChar(100)
+  state   String? @db.VarChar(50)
+  country String? @db.VarChar(50)
+
+  // === DESCRIPTIVE ===
+  description String? @db.Text
+  tagline     String? @db.Text
+
+  // === METRICS ===
+  employeeCount    String? @map("employee_count") @db.VarChar(50)
+  employeeCountMin Int? @map("employee_count_min")
+  employeeCountMax Int? @map("employee_count_max")
+  avgRating        Decimal? @map("avg_rating") @db.Decimal(3, 2)
+  totalReviews     Int? @default(0) @map("total_reviews")
+
+  // === LISTS (merged from all sources) ===
+  servicesMerged    String[] @map("services_merged")
+  industriesMerged  String[] @map("industries_merged")
+  clientsMerged     String[] @map("clients_merged")
+
+  // === SOURCE TRACKING ===
+  sources          String[] // e.g., ["agencyspotter", "goodfirms", "themanifest"]
+  sourceCount      Int @map("source_count")
+  dataQualityScore Int? @map("data_quality_score")
+
+  // === SOURCE DATA (ALL original fields as JSONB) ===
+  agencyspotterData Json? @map("agencyspotter_data")
+  goodfirmsData     Json? @map("goodfirms_data")
+  themanifestData   Json? @map("themanifest_data")
+
+  // === CRM FIELDS ===
+  contactStatus          String @default("not_contacted") @map("contact_status") @db.VarChar(20)
+  contactStatusChangedAt DateTime? @map("contact_status_changed_at") @db.Timestamptz(6)
+  notes                  String? @db.Text
+  tags                   String[]
+  lastContactDate        DateTime? @map("last_contact_date") @db.Date
+
+  // === USER PREFERENCES ===
+  preferredSource String? @map("preferred_source") @db.VarChar(20)
+
+  // === TIMESTAMPS ===
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([state])
+  @@index([city, state])
+  @@index([contactStatus], map: "idx_agencies_contact_status")
+  @@index([employeeCountMin, employeeCountMax], map: "idx_agencies_employee_range")
+  @@index([avgRating], map: "idx_agencies_rating")
+  @@index([websiteUrl], map: "idx_agencies_website")
+  @@map("agencies")
+}
