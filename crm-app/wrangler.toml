@@ -1,0 +1,21 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "agency-crm"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Observability
+observability = { enabled = true }
+
+# Bindings
+[vars]
+# Add non-sensitive environment variables here
+
+# Database binding (you'll set DATABASE_URL via secrets)
+# Run: wrangler secret put DATABASE_URL
+
+# Workers configuration
+# Note: For PostgreSQL with Prisma, you may need Hyperdrive for connection pooling
+# Uncomment and configure if using Hyperdrive:
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "your-hyperdrive-id"
