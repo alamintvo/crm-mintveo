@@ -29,6 +29,12 @@ export function DuplicateMergeCard({
 
   if (!primary || !secondary) return null
 
+  // Check if websites are different
+  const differentWebsites =
+    primary.websiteUrl &&
+    secondary.websiteUrl &&
+    primary.websiteUrl.toLowerCase().trim() !== secondary.websiteUrl.toLowerCase().trim()
+
   // Calculate merged preview data
   const mergedSources = Array.from(
     new Set([...(primary.sources || []), ...(secondary.sources || [])])
@@ -51,9 +57,24 @@ export function DuplicateMergeCard({
           <Badge variant="outline" className="ml-3 bg-amber-50 text-amber-700 border-amber-200">
             {agencies.length} duplicates found
           </Badge>
+          {differentWebsites && (
+            <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200">
+              ⚠️ Different Websites
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Warning for different websites */}
+        {differentWebsites && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800">
+              <strong>⚠️ Warning:</strong> These agencies have <strong>different websites</strong>.
+              They may be separate companies with the same name. Please review carefully before merging.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Record A */}
           <div className="border rounded-lg p-4 bg-slate-50">

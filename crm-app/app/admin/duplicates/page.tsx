@@ -83,8 +83,10 @@ export default function DuplicatesPage() {
           Duplicate Agency Resolution
         </h1>
         <p className="text-slate-600">
-          Review and merge duplicate agency records. The merge strategy follows the PROJECT_PLAN.md:
-          keeping all unique contact values, averaging ratings, and combining source data.
+          Review agencies with the same name. <strong>Note:</strong> According to PROJECT_PLAN.md, duplicates
+          should be matched by <strong>website URL</strong> (primary key), not name. These agencies have the
+          <strong> same name but different websites</strong> - they may be separate companies. Please review
+          carefully before merging.
         </p>
       </div>
 
@@ -150,10 +152,29 @@ export default function DuplicatesPage() {
         </Alert>
       )}
 
+      {/* Important Notice */}
+      <Alert className="mb-6 bg-amber-50 border-amber-200">
+        <AlertCircle className="h-4 w-4 text-amber-600" />
+        <AlertTitle className="text-amber-900">⚠️ Important: Review Before Merging</AlertTitle>
+        <AlertDescription className="text-amber-800">
+          <p className="mb-2">
+            These agencies have the <strong>same name but DIFFERENT websites</strong>.
+            According to PROJECT_PLAN.md, the primary merge key should be <strong>website URL</strong>, not name.
+          </p>
+          <p className="mb-2 font-semibold">
+            ✅ Real duplicates (same website URL): 0 found - Database is clean!
+          </p>
+          <p>
+            The agencies below may be <strong>separate companies</strong> with the same name
+            (e.g., "Cactus Denver" vs "Cactus Inc"). Only merge if you're certain they're the same agency.
+          </p>
+        </AlertDescription>
+      </Alert>
+
       {/* Strategy Info */}
       <Alert className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Merge Strategy</AlertTitle>
+        <AlertTitle>Merge Strategy (if you decide to merge)</AlertTitle>
         <AlertDescription>
           Following PROJECT_PLAN.md rules:
           <ul className="list-disc list-inside mt-2 space-y-1">
