@@ -3,7 +3,18 @@
     "allow": [
       "Bash(python clean_website_urls.py:*)",
       "Bash(python -c:*)",
-      "Bash(more:*)"
+      "Bash(more:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python:*)",
+      "Bash(source:*)",
+      "Bash(uv pip install:*)",
+      "WebSearch",
+      "WebFetch(domain:www.prisma.io)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma db push:*)"
     ]
   }
 }
