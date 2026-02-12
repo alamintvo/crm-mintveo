@@ -206,10 +206,19 @@ export async function mergeDuplicates(
       sources: mergeUnique(p.sources, s.sources),
       source_count: mergeUnique(p.sources, s.sources).length,
 
-      // JSONB - merge both (prefer non-null)
-      agencyspotter_data: p.agencyspotter_data || s.agencyspotter_data,
-      goodfirms_data: p.goodfirms_data || s.goodfirms_data,
-      themanifest_data: p.themanifest_data || s.themanifest_data,
+      // JSONB - MERGE all data from both sources (not just pick one!)
+      agencyspotter_data: {
+        ...(s.agencyspotter_data || {}),
+        ...(p.agencyspotter_data || {}),
+      },
+      goodfirms_data: {
+        ...(s.goodfirms_data || {}),
+        ...(p.goodfirms_data || {}),
+      },
+      themanifest_data: {
+        ...(s.themanifest_data || {}),
+        ...(p.themanifest_data || {}),
+      },
 
       // LinkedIn - prefer primary
       linkedin_url: p.linkedin_url || s.linkedin_url,
@@ -227,7 +236,11 @@ export async function mergeDuplicates(
       ),
     }
 
-    // Update primary record with merged data
+    // IMPORTANT: Delete secondary record FIRST to avoid unique constraint violation
+    // (in case user selected secondary's website URL to keep)
+    await sql`DELETE FROM agencies WHERE id = ${secondaryId}`
+
+    // Now update primary record with merged data
     await sql`
       UPDATE agencies
       SET
@@ -261,9 +274,6 @@ export async function mergeDuplicates(
         updated_at = NOW()
       WHERE id = ${primaryId}
     `
-
-    // Delete secondary record
-    await sql`DELETE FROM agencies WHERE id = ${secondaryId}`
 
     return {
       success: true,
