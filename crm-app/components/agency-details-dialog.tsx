@@ -449,57 +449,116 @@ function SourceDataDisplay({ data }: { data: any }) {
     return <p className="text-sm text-slate-500 py-4">No additional data available</p>
   }
 
+  // Parse Projects if it's a stringified JSON
+  let projects = null
+  if (data.Projects) {
+    try {
+      projects = typeof data.Projects === "string" ? JSON.parse(data.Projects) : data.Projects
+    } catch (e) {
+      console.error("Failed to parse projects:", e)
+    }
+  }
+
   const importantFields = ["profile_url", "url", "rating", "reviews", "founded", "headquarters", "employees"]
-  const sortedEntries = Object.entries(data).sort((a, b) => {
-    const aImportant = importantFields.includes(a[0].toLowerCase())
-    const bImportant = importantFields.includes(b[0].toLowerCase())
-    if (aImportant && !bImportant) return -1
-    if (!aImportant && bImportant) return 1
-    return 0
-  })
+  const sortedEntries = Object.entries(data)
+    .filter(([key]) => key !== "Projects") // We'll handle projects separately
+    .sort((a, b) => {
+      const aImportant = importantFields.includes(a[0].toLowerCase())
+      const bImportant = importantFields.includes(b[0].toLowerCase())
+      if (aImportant && !bImportant) return -1
+      if (!aImportant && bImportant) return 1
+      return 0
+    })
 
   return (
-    <div className="bg-slate-50 rounded-lg border p-4">
-      <dl className="space-y-3">
-        {sortedEntries.map(([key, value]) => {
-          if (value === null || value === undefined || value === "") return null
-
-          return (
-            <div key={key} className="grid grid-cols-3 gap-3">
-              <dt className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                {key.replace(/_/g, " ")}
-              </dt>
-              <dd className="text-sm text-slate-900 col-span-2">
-                {key.toLowerCase().includes("url") || key.toLowerCase().includes("link") ? (
-                  <a
-                    href={String(value)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-700 hover:text-slate-900 flex items-center gap-1 break-all"
-                  >
-                    {String(value)}
-                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  </a>
-                ) : Array.isArray(value) ? (
-                  <div className="flex flex-wrap gap-1">
-                    {value.map((item, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs font-normal">
-                        {typeof item === "object" ? JSON.stringify(item) : String(item)}
-                      </Badge>
-                    ))}
+    <div className="space-y-6">
+      {/* Projects Section - Special Display */}
+      {projects && Array.isArray(projects) && projects.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-slate-500" />
+            Projects Portfolio ({projects.length})
+          </h4>
+          <div className="space-y-4">
+            {projects.map((project: any, idx: number) => (
+              <Card key={idx} className="bg-white">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {project.title && (
+                      <div>
+                        <h5 className="font-semibold text-slate-900 mb-1">{project.title}</h5>
+                        {project.client && (
+                          <p className="text-xs text-slate-500">Client: {project.client}</p>
+                        )}
+                      </div>
+                    )}
+                    {project.description && (
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {project.description}
+                      </p>
+                    )}
+                    {project.services && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {project.services.split("|").map((service: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {service.trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : typeof value === "object" ? (
-                  <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-32 font-mono">
-                    {JSON.stringify(value, null, 2)}
-                  </pre>
-                ) : (
-                  <span>{String(value)}</span>
-                )}
-              </dd>
-            </div>
-          )
-        })}
-      </dl>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other Data */}
+      {sortedEntries.length > 0 && (
+        <div className="bg-slate-50 rounded-lg border p-4">
+          <dl className="space-y-3">
+            {sortedEntries.map(([key, value]) => {
+              if (value === null || value === undefined || value === "") return null
+
+              return (
+                <div key={key} className="grid grid-cols-3 gap-3">
+                  <dt className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    {key.replace(/_/g, " ")}
+                  </dt>
+                  <dd className="text-sm text-slate-900 col-span-2">
+                    {key.toLowerCase().includes("url") || key.toLowerCase().includes("link") ? (
+                      <a
+                        href={String(value)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-700 hover:text-slate-900 flex items-center gap-1 break-all"
+                      >
+                        {String(value)}
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    ) : Array.isArray(value) ? (
+                      <div className="flex flex-wrap gap-1">
+                        {value.map((item, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs font-normal">
+                            {typeof item === "object" ? JSON.stringify(item) : String(item)}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : typeof value === "object" ? (
+                      <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-32 font-mono">
+                        {JSON.stringify(value, null, 2)}
+                      </pre>
+                    ) : (
+                      <span>{String(value)}</span>
+                    )}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
+        </div>
+      )}
     </div>
   )
 }
