@@ -1,13 +1,12 @@
 /**
  * Prisma Client Instance for Next.js
  *
- * Uses Neon serverless driver for Cloudflare Workers compatibility
- * Implements singleton pattern for serverless environments
+ * Uses Neon serverless driver (HTTP-based) per official Prisma docs
+ * https://www.prisma.io/docs/orm/overview/databases/neon
  */
 
 import { PrismaClient } from '../generated/prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
-import { Pool } from '@neondatabase/serverless'
 
 // Declare global type for Prisma client
 declare global {
@@ -15,17 +14,32 @@ declare global {
   var prisma: PrismaClient | undefined
 }
 
-// Create Neon serverless connection pool
-const connectionString = process.env.DATABASE_URL!
-const pool = new Pool({ connectionString })
+// Lazy initialization function
+function getPrismaClient() {
+  if (global.prisma) {
+    return global.prisma
+  }
 
-// Create Prisma adapter for Neon
-const adapter = new PrismaNeon(pool as any) // Type assertion for compatibility
+  // Create Neon adapter with connection string (per Prisma docs)
+  const adapter = new PrismaNeon({
+    connectionString: process.env.DATABASE_URL
+  })
 
-// Singleton Prisma client
-export const prisma = global.prisma || new PrismaClient({ adapter })
+  // Create Prisma client with adapter
+  const client = new PrismaClient({ adapter })
 
-// Prevent multiple instances in development (hot reload)
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
+  // Cache for hot reload
+  if (process.env.NODE_ENV !== 'production') {
+    global.prisma = client
+  }
+
+  return client
 }
+
+// Export with Proxy for lazy initialization
+export const prisma = new Proxy({} as PrismaClient, {
+  get: (_target, prop) => {
+    const client = getPrismaClient()
+    return (client as any)[prop]
+  }
+})
