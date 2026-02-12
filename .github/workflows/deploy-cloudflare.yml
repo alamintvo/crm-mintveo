@@ -22,15 +22,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: crm-app/package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies and generate Prisma client
         working-directory: ./crm-app
         run: npm ci
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Generate Prisma Client
-        working-directory: ./database
-        run: npx prisma generate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 

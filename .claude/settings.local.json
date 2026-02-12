@@ -29,7 +29,12 @@
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:www.thetombomb.com)",
       "Bash(npm run pages:build:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)",
+      "Bash(npx wrangler secret:*)",
+      "Bash(gh run view:*)"
     ]
   }
 }
