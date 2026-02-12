@@ -450,7 +450,7 @@ def deduplicate_exact_website(dataframes):
         dataframes: Dict of {source_name: DataFrame}
 
     Returns:
-        DataFrame: Merged agencies with exact website matches
+        tuple: (DataFrame of merged agencies, list of all conflicts)
     """
     print("\n" + "=" * 60)
     print("DEDUPLICATION: Exact Website Match")
@@ -473,18 +473,21 @@ def deduplicate_exact_website(dataframes):
     print(f"Duplicate websites found: {duplicates['website_normalized'].nunique():,}")
     print(f"Total duplicate records: {len(duplicates):,}")
 
-    # Merge duplicates
+    # Merge duplicates and collect conflicts
     merged = []
+    all_conflicts = []
 
     for website, group in grouped:
         # Always use merge_agency_records to ensure consistent structure
         # (even for single-source agencies)
-        merged_row = merge_agency_records(group)
+        merged_row, conflicts = merge_agency_records(group)
         merged.append(merged_row)
+        all_conflicts.extend(conflicts)  # Collect conflicts from this agency
 
     print(f"Merged into: {len(merged):,} unique agencies")
+    print(f"Conflicts detected: {len(all_conflicts):,}")
 
-    return pd.DataFrame(merged)
+    return pd.DataFrame(merged), all_conflicts
 
 
 def merge_agency_records(group):
@@ -496,10 +499,11 @@ def merge_agency_records(group):
         group: DataFrame with multiple rows for same agency
 
     Returns:
-        dict: Merged agency record
+        tuple: (merged_dict, conflicts_list)
     """
     # Initialize merged record
     merged = {}
+    conflicts = []  # Track conflicts for this agency
 
     # Track which sources this agency appears in
     sources = group['_source'].tolist()
@@ -508,6 +512,8 @@ def merge_agency_records(group):
 
     # Prefer AgencySpotter for most fields (newest data: 2026-01-26)
     prefer_as = group[group['_source'] == 'agencyspotter'].iloc[0] if 'agencyspotter' in sources else group.iloc[0]
+
+    agency_name = group.iloc[0]['name']  # For conflict logging
 
     # === IDENTITY FIELDS ===
     merged['name'] = prefer_as['name']
@@ -519,35 +525,95 @@ def merge_agency_records(group):
     # Emails - normalize and deduplicate
     all_emails_normalized = []
     all_emails_original = []
-    for email in group['email'].dropna():
-        email_norm = normalize_email(email)
-        if email_norm and email_norm not in all_emails_normalized:
-            all_emails_normalized.append(email_norm)
-            all_emails_original.append(email)  # Keep original format
+    email_sources = {}  # Track which source has which email
+    for _, row in group.iterrows():
+        email = row['email']
+        source = row['_source']
+        if pd.notna(email):
+            email_norm = normalize_email(email)
+            if email_norm:
+                if email_norm not in email_sources:
+                    email_sources[email_norm] = []
+                email_sources[email_norm].append(source)
+                if email_norm not in all_emails_normalized:
+                    all_emails_normalized.append(email_norm)
+                    all_emails_original.append(email)
+
     merged['contact_emails'] = all_emails_original  # Array of all unique emails
     merged['contact_email'] = all_emails_original[0] if all_emails_original else None  # Primary
+
+    # Log conflict if multiple different emails exist
+    if len(all_emails_original) > 1 and merged['source_count'] > 1:
+        conflicts.append({
+            'agency': agency_name,
+            'field': 'contact_email',
+            'type': 'multiple_emails',
+            'count': len(all_emails_original),
+            'values': all_emails_original,
+            'resolution': 'kept_all_unique'
+        })
 
     # Phone numbers - normalize and deduplicate
     all_phones_normalized = []
     all_phones_original = []
-    for phone in group['phone'].dropna():
-        phone_norm = normalize_phone(phone)
-        if phone_norm and phone_norm not in all_phones_normalized:
-            all_phones_normalized.append(phone_norm)
-            all_phones_original.append(phone)  # Keep original format
+    phone_sources = {}  # Track which source has which phone
+    for _, row in group.iterrows():
+        phone = row['phone']
+        source = row['_source']
+        if pd.notna(phone):
+            phone_norm = normalize_phone(phone)
+            if phone_norm:
+                if phone_norm not in phone_sources:
+                    phone_sources[phone_norm] = []
+                phone_sources[phone_norm].append(source)
+                if phone_norm not in all_phones_normalized:
+                    all_phones_normalized.append(phone_norm)
+                    all_phones_original.append(phone)
+
     merged['phone_numbers'] = all_phones_original  # Array of all unique phones
     merged['phone_number'] = all_phones_original[0] if all_phones_original else None  # Primary
+
+    # Log conflict if multiple different phone numbers exist
+    if len(all_phones_original) > 1 and merged['source_count'] > 1:
+        conflicts.append({
+            'agency': agency_name,
+            'field': 'phone_number',
+            'type': 'multiple_phones',
+            'count': len(all_phones_original),
+            'values': all_phones_original,
+            'resolution': 'kept_all_unique'
+        })
 
     # Addresses - normalize and deduplicate
     all_addresses_normalized = []
     all_addresses_original = []
-    for addr in group['address'].dropna():
-        addr_norm = normalize_address(addr)
-        if addr_norm and addr_norm not in all_addresses_normalized:
-            all_addresses_normalized.append(addr_norm)
-            all_addresses_original.append(addr)  # Keep original format
+    address_sources = {}
+    for _, row in group.iterrows():
+        addr = row['address']
+        source = row['_source']
+        if pd.notna(addr):
+            addr_norm = normalize_address(addr)
+            if addr_norm:
+                if addr_norm not in address_sources:
+                    address_sources[addr_norm] = []
+                address_sources[addr_norm].append(source)
+                if addr_norm not in all_addresses_normalized:
+                    all_addresses_normalized.append(addr_norm)
+                    all_addresses_original.append(addr)
+
     merged['addresses'] = all_addresses_original  # Array of all unique addresses
     merged['full_address'] = all_addresses_original[0] if all_addresses_original else None  # Primary
+
+    # Log conflict if multiple different addresses exist (possible multiple offices)
+    if len(all_addresses_original) > 1 and merged['source_count'] > 1:
+        conflicts.append({
+            'agency': agency_name,
+            'field': 'address',
+            'type': 'multiple_locations',
+            'count': len(all_addresses_original),
+            'values': all_addresses_original,
+            'resolution': 'kept_all_unique'
+        })
 
     # City/State/Country from primary address (prefer AS)
     merged['city'] = prefer_as['city']
@@ -558,6 +624,20 @@ def merge_agency_records(group):
     descriptions = group['description'].dropna()
     if len(descriptions) > 0:
         merged['description'] = max(descriptions, key=len)
+        # Log conflict if multiple different descriptions exist
+        if len(descriptions) > 1 and descriptions.nunique() > 1 and merged['source_count'] > 1:
+            desc_by_source = {}
+            for _, row in group.iterrows():
+                if pd.notna(row['description']):
+                    desc_preview = str(row['description'])[:50] + '...'
+                    desc_by_source[row['_source']] = desc_preview
+            conflicts.append({
+                'agency': agency_name,
+                'field': 'description',
+                'type': 'different_descriptions',
+                'values': desc_by_source,
+                'resolution': 'picked_longest'
+            })
     else:
         merged['description'] = None
 
@@ -622,6 +702,19 @@ def merge_agency_records(group):
     ratings = group['rating'].dropna()
     if len(ratings) > 0:
         merged['avg_rating'] = round(ratings.mean(), 2)
+        # Log conflict if ratings differ across sources
+        if len(ratings) > 1 and ratings.nunique() > 1 and merged['source_count'] > 1:
+            rating_by_source = {}
+            for _, row in group.iterrows():
+                if pd.notna(row['rating']):
+                    rating_by_source[row['_source']] = float(row['rating'])
+            conflicts.append({
+                'agency': agency_name,
+                'field': 'rating',
+                'type': 'different_ratings',
+                'values': rating_by_source,
+                'resolution': f'averaged_to_{merged["avg_rating"]}'
+            })
     else:
         merged['avg_rating'] = None
 
@@ -633,10 +726,25 @@ def merge_agency_records(group):
         merged['total_reviews'] = 0
 
     # Employee count: prefer AS (newest)
+    emp_counts = {}
+    for _, row in group.iterrows():
+        if pd.notna(row.get('employee_count')):
+            emp_counts[row['_source']] = row['employee_count']
+
     merged['employee_count'] = prefer_as.get('employee_count')
     emp_min, emp_max = parse_employee_count(merged['employee_count'])
     merged['employee_count_min'] = emp_min
     merged['employee_count_max'] = emp_max
+
+    # Log conflict if employee counts differ across sources
+    if len(emp_counts) > 1 and len(set(str(v) for v in emp_counts.values())) > 1:
+        conflicts.append({
+            'agency': agency_name,
+            'field': 'employee_count',
+            'type': 'different_employee_counts',
+            'values': emp_counts,
+            'resolution': f'preferred_agencyspotter_{merged["employee_count"]}'
+        })
 
     # === SOURCE-SPECIFIC DATA (JSONB) ===
     for source in sources:
@@ -651,7 +759,7 @@ def merge_agency_records(group):
     # === DATA QUALITY SCORE ===
     merged['data_quality_score'] = calculate_data_quality_score(pd.Series(merged))
 
-    return merged
+    return merged, conflicts
 
 
 def fuzzy_match_names(df1, df2, threshold=FUZZY_MATCH_THRESHOLD):
@@ -706,33 +814,53 @@ def generate_merge_report(stats, conflicts, output_path=REPORT_FILE):
         conflicts: List of detected conflicts
         output_path: Where to save report
     """
+    # Count conflicts by type and field
+    by_type = {}
+    by_field = {}
+
+    for conflict in conflicts:
+        conflict_type = conflict.get('type', 'unknown')
+        field = conflict.get('field', 'unknown')
+
+        by_type[conflict_type] = by_type.get(conflict_type, 0) + 1
+        by_field[field] = by_field.get(field, 0) + 1
+
+    # Generate recommendations
+    recommendations = []
+
+    if by_type.get('multiple_locations', 0) > 10:
+        recommendations.append(
+            f"Found {by_type['multiple_locations']} agencies with multiple addresses - these may have multiple office locations"
+        )
+
+    if by_type.get('multiple_phones', 0) > 20:
+        recommendations.append(
+            f"Found {by_type['multiple_phones']} agencies with multiple phone numbers - verify these are legitimate different numbers"
+        )
+
+    if by_type.get('different_employee_counts', 0) > 10:
+        recommendations.append(
+            f"Found {by_type['different_employee_counts']} agencies with conflicting employee counts - companies may have grown or data may be outdated"
+        )
+
+    if by_type.get('different_ratings', 0) > 50:
+        recommendations.append(
+            f"Found {by_type['different_ratings']} agencies with different ratings across sources - averaged for overall reputation"
+        )
+
+    # Build report
     report = {
         'generated_at': datetime.now().isoformat(),
         'merge_summary': stats,
         'conflicts': {
             'total': len(conflicts),
-            'by_type': {},
-            'examples': conflicts[:20]  # First 20 examples
+            'unique_agencies_affected': len(set(c['agency'] for c in conflicts)),
+            'by_type': by_type,
+            'by_field': by_field,
+            'all_conflicts': conflicts  # ALL conflicts, not just examples
         },
-        'recommendations': []
+        'recommendations': recommendations
     }
-
-    # Count by type
-    for conflict in conflicts:
-        conflict_type = conflict.get('type', 'unknown')
-        report['conflicts']['by_type'][conflict_type] = \
-            report['conflicts']['by_type'].get(conflict_type, 0) + 1
-
-    # Recommendations
-    if stats.get('address_conflicts', 0) > 10:
-        report['recommendations'].append(
-            "Spot-check address conflicts - some agencies may have multiple offices"
-        )
-
-    if stats.get('employee_count_conflicts', 0) > 10:
-        report['recommendations'].append(
-            "Review employee count conflicts - companies may have grown between scrapes"
-        )
 
     # Save report
     with open(output_path, 'w') as f:
@@ -740,8 +868,13 @@ def generate_merge_report(stats, conflicts, output_path=REPORT_FILE):
 
     print(f"\n[OK] Merge report saved to: {output_path}")
     print(f"  Total conflicts detected: {len(conflicts)}")
-    for conflict_type, count in report['conflicts']['by_type'].items():
+    print(f"  Agencies with conflicts: {report['conflicts']['unique_agencies_affected']}")
+    print(f"\n  Conflicts by type:")
+    for conflict_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True):
         print(f"    - {conflict_type}: {count}")
+    print(f"\n  Conflicts by field:")
+    for field, count in sorted(by_field.items(), key=lambda x: x[1], reverse=True):
+        print(f"    - {field}: {count}")
 
 
 def main():
@@ -763,7 +896,7 @@ def main():
     print(f"\nTotal input agencies: {total_input:,}")
 
     # === STEP 2: EXACT WEBSITE DEDUPLICATION ===
-    merged_df = deduplicate_exact_website(dataframes)
+    merged_df, conflicts = deduplicate_exact_website(dataframes)
 
     # === STEP 3: OUTPUT ===
     print("\n" + "=" * 60)
@@ -827,11 +960,10 @@ def main():
             '1_source': len(final_df[final_df['source_count'] == 1]),
             '2_sources': len(final_df[final_df['source_count'] == 2]),
             '3_sources': len(final_df[final_df['source_count'] == 3]),
-        }
+        },
+        'agencies_with_conflicts': len(set(c['agency'] for c in conflicts)),
+        'total_conflicts': len(conflicts)
     }
-
-    # TODO: Track conflicts during merge
-    conflicts = []
 
     generate_merge_report(stats, conflicts)
 
