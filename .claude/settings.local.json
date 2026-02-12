@@ -44,7 +44,14 @@
       "Bash(npx @opennextjs/cloudflare build:*)",
       "Bash(node analyze-bundle.js:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npx wrangler deploy:*)"
+      "Bash(npx wrangler deploy:*)",
+      "Bash(gh api:*)",
+      "Bash(gunzip:*)",
+      "Bash(python3:*)",
+      "mcp__neon__list_projects",
+      "mcp__neon__describe_table_schema",
+      "mcp__neon__run_sql",
+      "Bash(cat:*)"
     ]
   }
 }
