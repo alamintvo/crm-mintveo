@@ -28,6 +28,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Generate Prisma Client
+        working-directory: ./database
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Build for Cloudflare
         working-directory: ./crm-app
         run: npm run pages:build
