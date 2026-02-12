@@ -271,9 +271,10 @@ export async function mergeDuplicates(
     }
   } catch (error) {
     console.error("Error merging duplicates:", error)
+    const errorMessage = error instanceof Error ? error.message : "Failed to merge duplicates"
     return {
       success: false,
-      error: "Failed to merge duplicates",
+      error: `Failed to merge: ${errorMessage}`,
     }
   }
 }
