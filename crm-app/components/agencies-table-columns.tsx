@@ -25,7 +25,7 @@ import {
 import { CONTACT_STATUSES } from "@/lib/constants"
 import {
   formatPhoneNumber,
-  getCountryFlag,
+  getCountryCode,
   getFaviconUrl,
   formatEmail,
 } from "@/lib/format-utils"
@@ -254,11 +254,12 @@ export const createColumns = (
     header: ({ column }) => <SortableHeader column={column}>Country</SortableHeader>,
     cell: ({ row }) => {
       const country = row.getValue("country") as string | null
+      const code = getCountryCode(country)
       return country ? (
         <div className="flex items-center gap-2 text-sm min-w-[140px]">
-          <span className="text-lg flex-shrink-0" title={country}>
-            {getCountryFlag(country)}
-          </span>
+          {code ? (
+            <span className={`fi fi-${code} flex-shrink-0`} title={country} />
+          ) : null}
           <span className="truncate" title={country}>
             {country}
           </span>

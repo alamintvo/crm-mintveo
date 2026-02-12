@@ -28,84 +28,117 @@ export function formatPhoneNumber(phone: string | null): string {
 }
 
 /**
- * Get country flag emoji from country name
- * Uses Unicode regional indicator symbols
+ * Get ISO country code from country name
+ * Returns lowercase code for use with flag-icons CSS library
  */
-export function getCountryFlag(country: string | null): string {
-  if (!country) return ""
+export function getCountryCode(country: string | null): string | null {
+  if (!country) return null
 
   const countryToCode: Record<string, string> = {
     // North America
-    "United States": "US",
-    "USA": "US",
-    "US": "US",
-    "Canada": "CA",
-    "Mexico": "MX",
+    "United States": "us",
+    "USA": "us",
+    "US": "us",
+    "Canada": "ca",
+    "Mexico": "mx",
 
     // Europe
-    "United Kingdom": "GB",
-    "UK": "GB",
-    "England": "GB",
-    "Germany": "DE",
-    "France": "FR",
-    "Spain": "ES",
-    "Italy": "IT",
-    "Netherlands": "NL",
-    "Belgium": "BE",
-    "Switzerland": "CH",
-    "Austria": "AT",
-    "Poland": "PL",
-    "Sweden": "SE",
-    "Norway": "NO",
-    "Denmark": "DK",
-    "Finland": "FI",
-    "Ireland": "IE",
-    "Portugal": "PT",
-    "Greece": "GR",
+    "United Kingdom": "gb",
+    "UK": "gb",
+    "England": "gb",
+    "Germany": "de",
+    "France": "fr",
+    "Spain": "es",
+    "Italy": "it",
+    "Netherlands": "nl",
+    "Belgium": "be",
+    "Switzerland": "ch",
+    "Austria": "at",
+    "Poland": "pl",
+    "Sweden": "se",
+    "Norway": "no",
+    "Denmark": "dk",
+    "Finland": "fi",
+    "Ireland": "ie",
+    "Portugal": "pt",
+    "Greece": "gr",
+    "Czech Republic": "cz",
+    "Romania": "ro",
+    "Hungary": "hu",
+    "Croatia": "hr",
+    "Ukraine": "ua",
+    "Bulgaria": "bg",
+    "Lithuania": "lt",
+    "Latvia": "lv",
+    "Estonia": "ee",
+    "Slovakia": "sk",
+    "Slovenia": "si",
 
     // Asia
-    "China": "CN",
-    "Japan": "JP",
-    "India": "IN",
-    "South Korea": "KR",
-    "Singapore": "SG",
-    "Thailand": "TH",
-    "Vietnam": "VN",
-    "Philippines": "PH",
-    "Indonesia": "ID",
-    "Malaysia": "MY",
+    "China": "cn",
+    "Japan": "jp",
+    "India": "in",
+    "South Korea": "kr",
+    "Singapore": "sg",
+    "Thailand": "th",
+    "Vietnam": "vn",
+    "Philippines": "ph",
+    "Indonesia": "id",
+    "Malaysia": "my",
+    "Taiwan": "tw",
+    "Hong Kong": "hk",
+    "Pakistan": "pk",
+    "Bangladesh": "bd",
+    "Sri Lanka": "lk",
 
     // Oceania
-    "Australia": "AU",
-    "New Zealand": "NZ",
+    "Australia": "au",
+    "New Zealand": "nz",
 
     // Middle East
-    "United Arab Emirates": "AE",
-    "UAE": "AE",
-    "Israel": "IL",
-    "Saudi Arabia": "SA",
+    "United Arab Emirates": "ae",
+    "UAE": "ae",
+    "Israel": "il",
+    "Saudi Arabia": "sa",
+    "Turkey": "tr",
+    "Qatar": "qa",
+    "Kuwait": "kw",
+    "Bahrain": "bh",
+    "Jordan": "jo",
+    "Lebanon": "lb",
 
     // South America
-    "Brazil": "BR",
-    "Argentina": "AR",
-    "Chile": "CL",
-    "Colombia": "CO",
+    "Brazil": "br",
+    "Argentina": "ar",
+    "Chile": "cl",
+    "Colombia": "co",
+    "Peru": "pe",
+    "Uruguay": "uy",
+    "Ecuador": "ec",
 
     // Africa
-    "South Africa": "ZA",
-    "Egypt": "EG",
-    "Nigeria": "NG",
+    "South Africa": "za",
+    "Egypt": "eg",
+    "Nigeria": "ng",
+    "Kenya": "ke",
+    "Morocco": "ma",
+    "Ghana": "gh",
+    "Tunisia": "tn",
   }
 
-  const code = countryToCode[country] || countryToCode[country.toUpperCase()]
-  if (!code) return ""
+  return countryToCode[country] || countryToCode[country.toUpperCase()] || null
+}
 
-  // Convert country code to flag emoji
+/**
+ * @deprecated Use getCountryCode + flag-icons CSS instead (emoji flags don't work on Chrome/Windows)
+ */
+export function getCountryFlag(country: string | null): string {
+  const code = getCountryCode(country)
+  if (!code) return ""
   const codePoints = code
     .toUpperCase()
     .split("")
     .map((char) => 127397 + char.charCodeAt(0))
-
   return String.fromCodePoint(...codePoints)
 }
 
