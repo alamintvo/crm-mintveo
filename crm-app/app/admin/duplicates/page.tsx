@@ -14,6 +14,7 @@ export default function DuplicatesPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [mergingId, setMergingId] = React.useState<string | null>(null)
   const [mergedCount, setMergedCount] = React.useState(0)
+  const [skippedNames, setSkippedNames] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
     loadDuplicates()
@@ -55,6 +56,10 @@ export default function DuplicatesPage() {
     setMergingId(null)
   }
 
+  const handleSkip = (normalizedName: string) => {
+    setSkippedNames((prev) => new Set(prev).add(normalizedName))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -91,19 +96,19 @@ export default function DuplicatesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-slate-600">
-              Duplicate Groups
+              Pending Review
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">
-              {duplicates.length}
+              {duplicates.filter((dup) => !skippedNames.has(dup.normalizedName)).length}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Groups of duplicate agencies
+              Groups to review
             </p>
           </CardContent>
         </Card>
@@ -111,15 +116,15 @@ export default function DuplicatesPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-slate-600">
-              Total Duplicates
+              Total Found
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">
-              {duplicates.reduce((sum, dup) => sum + dup.count, 0)}
+              {duplicates.length}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Total duplicate records
+              Duplicate groups found
             </p>
           </CardContent>
         </Card>
@@ -136,6 +141,22 @@ export default function DuplicatesPage() {
             </div>
             <p className="text-xs text-slate-500 mt-1">
               Successfully merged
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-slate-600">
+              Skipped
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-600">
+              {skippedNames.size}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Kept separate
             </p>
           </CardContent>
         </Card>
@@ -188,29 +209,35 @@ export default function DuplicatesPage() {
       </Alert>
 
       {/* Duplicate List */}
-      {duplicates.length === 0 ? (
+      {duplicates.filter((dup) => !skippedNames.has(dup.normalizedName)).length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              No Duplicates Found
+              All Done!
             </h3>
             <p className="text-slate-600">
-              All duplicate agencies have been resolved!
+              {mergedCount > 0
+                ? `Merged ${mergedCount} duplicate${mergedCount > 1 ? "s" : ""}.`
+                : "No duplicates to review."}
+              {skippedNames.size > 0 && ` Skipped ${skippedNames.size} as separate agencies.`}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
-          {duplicates.map((dup) => (
-            <DuplicateMergeCard
-              key={dup.normalizedName}
-              agencies={dup.agencies}
-              normalizedName={dup.normalizedName}
-              onMerge={handleMerge}
-              isMerging={mergingId === `${dup.agencies[0]?.id}-${dup.agencies[1]?.id}`}
-            />
-          ))}
+          {duplicates
+            .filter((dup) => !skippedNames.has(dup.normalizedName))
+            .map((dup) => (
+              <DuplicateMergeCard
+                key={dup.normalizedName}
+                agencies={dup.agencies}
+                normalizedName={dup.normalizedName}
+                onMerge={handleMerge}
+                onSkip={handleSkip}
+                isMerging={mergingId === `${dup.agencies[0]?.id}-${dup.agencies[1]?.id}`}
+              />
+            ))}
         </div>
       )}
     </div>
