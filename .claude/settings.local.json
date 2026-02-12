@@ -17,7 +17,19 @@
       "Bash(npx prisma db push:*)",
       "Bash(npx create-next-app@latest:*)",
       "Bash(timeout 10 npm run dev:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add button table input select card badge sidebar dropdown-menu dialog textarea --all)",
+      "Bash(npx shadcn@latest add button table)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "WebFetch(domain:opennext.js.org)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:www.thetombomb.com)",
+      "Bash(npm run pages:build:*)",
+      "Bash(tee:*)"
     ]
   }
 }
