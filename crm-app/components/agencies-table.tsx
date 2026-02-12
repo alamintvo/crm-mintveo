@@ -40,7 +40,13 @@ import {
 } from "@/components/ui/card"
 import { CONTACT_STATUSES } from "@/lib/constants"
 import { AgencyDetailsDialog } from "@/components/agency-details-dialog"
-import { getAgencyById } from "@/app/actions/agencies"
+import { getAgencyById, updateContactStatus } from "@/app/actions/agencies"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type Agency = {
   id: number
@@ -125,6 +131,15 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
       setDialogOpen(true)
     } else {
       console.error("Failed to load agency details")
+    }
+  }
+
+  const handleStatusChange = async (agencyId: number, newStatus: string, event: React.MouseEvent) => {
+    event.stopPropagation() // Prevent row click
+    const result = await updateContactStatus(agencyId, newStatus)
+    if (result.success) {
+      // Refresh the page to show updated status
+      router.refresh()
     }
   }
 
@@ -324,14 +339,29 @@ export function AgenciesTable({ agencies, pagination, filterValues }: AgenciesTa
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={contactStatusColors[agency.contactStatus] || ""}
-                        >
-                          {CONTACT_STATUSES.find((s) => s.value === agency.contactStatus)?.label ||
-                            agency.contactStatus}
-                        </Badge>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={`cursor-pointer hover:opacity-80 ${contactStatusColors[agency.contactStatus] || ""}`}
+                            >
+                              {CONTACT_STATUSES.find((s) => s.value === agency.contactStatus)?.label ||
+                                agency.contactStatus}
+                            </Badge>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {CONTACT_STATUSES.map((status) => (
+                              <DropdownMenuItem
+                                key={status.value}
+                                onClick={(e) => handleStatusChange(agency.id, status.value, e)}
+                                className={agency.contactStatus === status.value ? "bg-muted" : ""}
+                              >
+                                {status.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ExternalLink, Star, Building2, Users, MapPin, Mail, Phone, Globe, Linkedin } from "lucide-react"
+import { ExternalLink, Star, Building2, Users, MapPin, Mail, Phone, Globe, Linkedin, Save } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { updateNotes } from "@/app/actions/agencies"
+import { toast } from "sonner"
 
 type AgencyDetailsProps = {
   agency: {
@@ -38,6 +41,9 @@ type AgencyDetailsProps = {
     agencyspotterData: any
     goodfirmsData: any
     themanifestData: any
+    notes: string | null
+    contactStatus: string
+    lastContactDate: Date | null
   }
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -65,7 +71,43 @@ const sourceConfig = {
 }
 
 export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetailsProps) {
+  const [notes, setNotes] = React.useState(agency.notes || "")
+  const [originalNotes, setOriginalNotes] = React.useState(agency.notes || "")
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
   const availableSources = agency.sources.map((source) => source.toLowerCase())
+
+  // Update notes state when agency changes
+  React.useEffect(() => {
+    setNotes(agency.notes || "")
+    setOriginalNotes(agency.notes || "")
+    setHasUnsavedChanges(false)
+  }, [agency.notes, agency.id])
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    setNotes(newValue)
+    setHasUnsavedChanges(newValue !== originalNotes)
+  }
+
+  const handleNotesBlur = async () => {
+    // Only save if there are actual changes
+    if (!hasUnsavedChanges || notes === originalNotes) {
+      return
+    }
+
+    setIsSaving(true)
+    const result = await updateNotes(agency.id, notes)
+    setIsSaving(false)
+
+    if (result.success) {
+      setOriginalNotes(notes) // Update the original to the new saved value
+      setHasUnsavedChanges(false)
+      toast.success("Notes saved successfully")
+    } else {
+      toast.error("Failed to save notes. Please try again.")
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,6 +260,38 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Notes Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>CRM Notes</CardTitle>
+                <CardDescription>
+                  Add notes about this agency. Changes are saved automatically.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={notes}
+                  onChange={handleNotesChange}
+                  onBlur={handleNotesBlur}
+                  placeholder="Add notes about this agency, contact history, or other important information..."
+                  className="min-h-[120px]"
+                />
+                <div className="flex items-center justify-between mt-2">
+                  {isSaving && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Save className="h-4 w-4 animate-pulse" />
+                      Saving...
+                    </div>
+                  )}
+                  {hasUnsavedChanges && !isSaving && (
+                    <div className="text-sm text-amber-600">
+                      Unsaved changes
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

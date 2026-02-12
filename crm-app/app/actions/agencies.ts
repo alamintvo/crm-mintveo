@@ -207,6 +207,64 @@ export async function getAgencyById(id: number) {
   }
 }
 
+export async function updateContactStatus(agencyId: number, newStatus: string) {
+  try {
+    const agency = await prisma.agency.update({
+      where: { id: agencyId },
+      data: {
+        contactStatus: newStatus,
+        contactStatusChangedAt: new Date(),
+      },
+      select: {
+        id: true,
+        contactStatus: true,
+        contactStatusChangedAt: true,
+      },
+    })
+
+    return {
+      success: true,
+      data: agency,
+    }
+  } catch (error) {
+    console.error("Error updating contact status:", error)
+    return {
+      success: false,
+      error: "Failed to update contact status",
+      data: null,
+    }
+  }
+}
+
+export async function updateNotes(agencyId: number, notes: string) {
+  try {
+    const agency = await prisma.agency.update({
+      where: { id: agencyId },
+      data: {
+        notes,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        notes: true,
+        updatedAt: true,
+      },
+    })
+
+    return {
+      success: true,
+      data: agency,
+    }
+  } catch (error) {
+    console.error("Error updating notes:", error)
+    return {
+      success: false,
+      error: "Failed to update notes",
+      data: null,
+    }
+  }
+}
+
 export async function getUniqueFilterValues() {
   try {
     const [states, countries, sources] = await Promise.all([
