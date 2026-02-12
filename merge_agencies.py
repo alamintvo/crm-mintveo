@@ -8,12 +8,22 @@ Features:
 - Loads all 3 CSV sources using source mappings
 - Normalizes website URLs for matching
 - Deduplicates by exact website match + fuzzy name match
+- Smart normalization for emails, phones, addresses, LinkedIn URLs
+- Keeps ALL unique values for contact info (multiple offices/contacts)
 - Auto-resolves conflicts using intelligent rules
 - Generates detailed merge report
 - Exports to merged_agencies_master.csv
 
+New in this version:
+- Phone normalization: removes formatting, detects true duplicates
+- Email normalization: lowercase, trim whitespace
+- Address normalization: standardize abbreviations
+- LinkedIn URL normalization: remove protocol/www/trailing slash
+- Arrays for: contact_emails, phone_numbers, addresses, linkedin_urls, social_links
+
 Author: Claude Code
 Created: 2026-02-11
+Updated: 2026-02-12 (Smart normalization + keep all unique values)
 """
 
 import json
@@ -112,6 +122,147 @@ def normalize_name(name):
     name = ' '.join(name.split())
 
     return name if name else None
+
+
+def normalize_phone(phone):
+    """
+    Normalize phone number for deduplication.
+
+    Removes all non-digit characters and country code for US numbers.
+
+    Examples:
+        "612-799-6613" -> "6127996613"
+        "+1 612-799-6613" -> "6127996613"
+        "(612) 799-6613" -> "6127996613"
+
+    Args:
+        phone: Raw phone string
+
+    Returns:
+        str or None: Normalized phone (digits only), or None if invalid
+    """
+    if pd.isna(phone) or not phone:
+        return None
+
+    # Remove all non-digit characters
+    digits_only = re.sub(r'\D', '', str(phone))
+
+    # Remove +1 country code for US numbers
+    if digits_only.startswith('1') and len(digits_only) == 11:
+        digits_only = digits_only[1:]  # Remove leading 1
+
+    # Must be 10 digits for valid US phone
+    if len(digits_only) != 10:
+        return None
+
+    return digits_only
+
+
+def normalize_email(email):
+    """
+    Normalize email for deduplication.
+
+    Lowercase and trim whitespace.
+
+    Examples:
+        "INFO@Agency.com" -> "info@agency.com"
+        " info@agency.com " -> "info@agency.com"
+
+    Args:
+        email: Raw email string
+
+    Returns:
+        str or None: Normalized email, or None if invalid
+    """
+    if pd.isna(email) or not email:
+        return None
+
+    email = str(email).strip().lower()
+
+    # Basic validation
+    if '@' not in email:
+        return None
+
+    return email
+
+
+def normalize_address(address):
+    """
+    Normalize address for deduplication.
+
+    Standardizes abbreviations, removes extra spaces, lowercase.
+
+    Examples:
+        "2521 27th ave S, Minneapolis, MN" -> "2521 27th ave s minneapolis mn"
+        "2521 27th Ave S, Minneapolis, Minnesota" -> "2521 27th ave s minneapolis minnesota"
+
+    Args:
+        address: Raw address string
+
+    Returns:
+        str or None: Normalized address, or None if invalid
+    """
+    if pd.isna(address) or not address:
+        return None
+
+    addr = str(address).lower().strip()
+
+    # Standardize common abbreviations
+    replacements = {
+        ' avenue ': ' ave ',
+        ' street ': ' st ',
+        ' road ': ' rd ',
+        ' drive ': ' dr ',
+        ' boulevard ': ' blvd ',
+        ' south ': ' s ',
+        ' north ': ' n ',
+        ' east ': ' e ',
+        ' west ': ' w ',
+    }
+
+    for old, new in replacements.items():
+        addr = addr.replace(old, new)
+
+    # Remove extra spaces
+    addr = re.sub(r'\s+', ' ', addr)
+
+    # Remove trailing punctuation and commas
+    addr = addr.rstrip('.,')
+
+    return addr
+
+
+def normalize_linkedin(url):
+    """
+    Normalize LinkedIn URL for deduplication.
+
+    Removes protocol, www, trailing slash, lowercase.
+
+    Examples:
+        "https://www.linkedin.com/company/xyz/" -> "linkedin.com/company/xyz"
+        "LinkedIn.com/company/xyz" -> "linkedin.com/company/xyz"
+
+    Args:
+        url: Raw LinkedIn URL
+
+    Returns:
+        str or None: Normalized URL, or None if invalid
+    """
+    if pd.isna(url) or not url:
+        return None
+
+    url = str(url).lower().strip()
+
+    # Remove protocol
+    url = re.sub(r'^https?://', '', url)
+
+    # Remove www.
+    url = re.sub(r'^www\.', '', url)
+
+    # Remove trailing slash
+    url = url.rstrip('/')
+
+    return url if url else None
 
 
 def parse_employee_count(emp_str):
@@ -363,17 +514,42 @@ def merge_agency_records(group):
     merged['website'] = prefer_as['website']
     merged['website_normalized'] = prefer_as['website_normalized']
 
-    # === CONTACT INFO (keep all unique values) ===
-    emails = group['email'].dropna().unique().tolist()
-    merged['contact_email'] = emails[0] if emails else None
-    merged['all_emails'] = emails  # For JSONB
+    # === CONTACT INFO: Keep ALL unique values (with smart normalization) ===
 
-    phones = group['phone'].dropna().unique().tolist()
-    merged['phone_number'] = phones[0] if phones else None
-    merged['all_phones'] = phones  # For JSONB
+    # Emails - normalize and deduplicate
+    all_emails_normalized = []
+    all_emails_original = []
+    for email in group['email'].dropna():
+        email_norm = normalize_email(email)
+        if email_norm and email_norm not in all_emails_normalized:
+            all_emails_normalized.append(email_norm)
+            all_emails_original.append(email)  # Keep original format
+    merged['contact_emails'] = all_emails_original  # Array of all unique emails
+    merged['contact_email'] = all_emails_original[0] if all_emails_original else None  # Primary
 
-    # === ADDRESS (prefer AS, keep all) ===
-    merged['full_address'] = prefer_as['address']
+    # Phone numbers - normalize and deduplicate
+    all_phones_normalized = []
+    all_phones_original = []
+    for phone in group['phone'].dropna():
+        phone_norm = normalize_phone(phone)
+        if phone_norm and phone_norm not in all_phones_normalized:
+            all_phones_normalized.append(phone_norm)
+            all_phones_original.append(phone)  # Keep original format
+    merged['phone_numbers'] = all_phones_original  # Array of all unique phones
+    merged['phone_number'] = all_phones_original[0] if all_phones_original else None  # Primary
+
+    # Addresses - normalize and deduplicate
+    all_addresses_normalized = []
+    all_addresses_original = []
+    for addr in group['address'].dropna():
+        addr_norm = normalize_address(addr)
+        if addr_norm and addr_norm not in all_addresses_normalized:
+            all_addresses_normalized.append(addr_norm)
+            all_addresses_original.append(addr)  # Keep original format
+    merged['addresses'] = all_addresses_original  # Array of all unique addresses
+    merged['full_address'] = all_addresses_original[0] if all_addresses_original else None  # Primary
+
+    # City/State/Country from primary address (prefer AS)
     merged['city'] = prefer_as['city']
     merged['state'] = prefer_as['state']
     merged['country'] = prefer_as.get('country', 'United States')
@@ -391,8 +567,32 @@ def merge_agency_records(group):
     else:
         merged['tagline'] = None
 
-    # === LINKEDIN ===
-    merged['linkedin_url'] = prefer_as.get('linkedin')
+    # === LINKEDIN URLs: Keep ALL unique (with normalization) ===
+    all_linkedin_normalized = []
+    all_linkedin_original = []
+    for li_url in group['linkedin'].dropna():
+        li_norm = normalize_linkedin(li_url)
+        if li_norm and li_norm not in all_linkedin_normalized:
+            all_linkedin_normalized.append(li_norm)
+            all_linkedin_original.append(li_url)
+    merged['linkedin_urls'] = all_linkedin_original  # Array of all unique LinkedIn URLs
+    merged['linkedin_url'] = all_linkedin_original[0] if all_linkedin_original else None  # Primary
+
+    # === SOCIAL LINKS: Keep ALL unique from all sources ===
+    # Note: Only AgencySpotter has "Other Social Links" field
+    all_social_links = []
+    for social_str in group['_source_data']:
+        # Access the original source data dict
+        if isinstance(social_str, dict) and 'Other Social Links' in social_str:
+            social = social_str['Other Social Links']
+            if pd.notna(social) and social:
+                # Split by newlines or commas
+                links = str(social).replace('\\n', '\n').split('\n')
+                for link in links:
+                    link = link.strip()
+                    if link and link not in all_social_links:
+                        all_social_links.append(link)
+    merged['social_links'] = all_social_links if all_social_links else None
 
     # === LISTS (merge unique values) ===
     # Services
@@ -571,7 +771,11 @@ def main():
     print("=" * 60)
 
     # Convert lists to JSON strings for CSV
-    for col in ['sources', 'services_merged', 'industries_merged', 'clients_merged', 'all_emails', 'all_phones']:
+    list_columns = [
+        'sources', 'services_merged', 'industries_merged', 'clients_merged',
+        'contact_emails', 'phone_numbers', 'addresses', 'linkedin_urls', 'social_links'
+    ]
+    for col in list_columns:
         if col in merged_df.columns:
             merged_df[col] = merged_df[col].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
 
@@ -583,13 +787,26 @@ def main():
 
     # Select final columns
     output_columns = [
-        'name', 'website', 'website_normalized', 'contact_email', 'phone_number', 'linkedin_url',
-        'full_address', 'city', 'state', 'country', 'description', 'tagline',
+        # Identity
+        'name', 'website', 'website_normalized',
+        # Contact info (primary + all arrays)
+        'contact_email', 'contact_emails',
+        'phone_number', 'phone_numbers',
+        'full_address', 'addresses',
+        'linkedin_url', 'linkedin_urls',
+        'social_links',
+        # Location
+        'city', 'state', 'country',
+        # Descriptive
+        'description', 'tagline',
+        # Metrics
         'employee_count', 'employee_count_min', 'employee_count_max',
         'avg_rating', 'total_reviews',
+        # Lists
         'services_merged', 'industries_merged', 'clients_merged',
+        # Source tracking
         'sources', 'source_count', 'data_quality_score',
-        'all_emails', 'all_phones',
+        # Source-specific JSONB data
         'agencyspotter_data', 'goodfirms_data', 'themanifest_data'
     ]
 

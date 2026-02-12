@@ -129,29 +129,66 @@ When the same agency appears in multiple sources (e.g., SmartSites in both Agenc
 
 ### Conflict Resolution Rules
 
-| Field Type | Auto-Resolution Rule | Reasoning |
-|------------|---------------------|-----------|
-| **Identity** | | |
-| - Name | Pick canonical (prefer AS) | Most complete, used for matching |
-| - Website | Normalized (remove http, www) | Used for deduplication |
-| **Contact Info** | | |
-| - Email | Keep ALL unique emails | Multiple departments may have different emails |
-| - Phone | Keep ALL unique phones | Multiple offices may have different numbers |
-| - Address | Pick **AgencySpotter** as primary<br>Keep all in JSONB | AS is newest data (2026-01-26), but preserve all locations |
-| - City/State | From primary address (AS) | Follows primary address |
-| **Descriptive** | | |
-| - Description | Pick **longest** (most informative)<br>Store all | Richer description helps qualify leads |
-| - Tagline | Pick **longest** or primary<br>Store all | More context is better |
-| **Lists/Arrays** | | |
-| - Service Focus | **Merge all unique services**<br>Store originals | Combined list shows full capabilities |
-| - Industry Focus | **Merge unique industries** | Complete picture of expertise |
-| - Clients List | **Merge unique clients** | More social proof |
-| **Metrics** | | |
-| - Rating | **Average** across all sources | Overall reputation |
-| - Review Count | **Sum** across all sources | Total social proof |
-| - Employee Count | Pick **AgencySpotter** (newest)<br>Store all | AS data is most recent (2026-01-26 vs 2026-01-15) |
-| **Status** | | |
-| - Claimed Status | Keep per source (source-specific) | May be claimed on AS but not GF |
+**Updated:** 2026-02-12 - Added smart normalization and "keep all unique" for contact fields
+
+| Field Type | Auto-Resolution Rule | Smart Normalization | Reasoning |
+|------------|---------------------|---------------------|-----------|
+| **Identity** | | | |
+| - Name | Pick canonical (prefer AS) | N/A | Most complete, used for matching |
+| - Website | Normalized (remove http, www) | Yes - domain only | Used for deduplication |
+| **Contact Info** | | | |
+| - Email | **Keep ALL unique emails** (array)<br>Primary: first one | Yes - lowercase, trim | Multiple departments may have different emails |
+| - Phone | **Keep ALL unique phones** (array)<br>Primary: first one | Yes - remove formatting, country code | Multiple offices may have different numbers |
+| - Address | **Keep ALL unique addresses** (array)<br>Primary: prefer AS | Yes - standardize abbreviations | Multiple office locations |
+| - LinkedIn URL | **Keep ALL unique URLs** (array)<br>Primary: first one | Yes - remove protocol/www/slash | Company page vs founder's personal |
+| - Social Links | **Keep ALL unique links** (array) | No - stored as-is | Different social media accounts |
+| - City/State | From primary address (AS) | N/A | Follows primary address |
+| **Descriptive** | | | |
+| - Description | Pick **longest** (most informative)<br>Store all | No | Richer description helps qualify leads |
+| - Tagline | Pick **longest** or primary<br>Store all | No | More context is better |
+| **Lists/Arrays** | | | |
+| - Service Focus | **Merge all unique services**<br>Store originals | No | Combined list shows full capabilities |
+| - Industry Focus | **Merge unique industries** | No | Complete picture of expertise |
+| - Clients List | **Merge unique clients** | No | More social proof |
+| **Metrics** | | | |
+| - Rating | **Average** across all sources | N/A | Overall reputation |
+| - Review Count | **Sum** across all sources | N/A | Total social proof |
+| - Employee Count | Pick **AgencySpotter** (newest)<br>Store all | No | AS data is most recent (2026-01-26 vs 2026-01-15) |
+| **Status** | | | |
+| - Claimed Status | Keep per source (source-specific) | N/A | May be claimed on AS but not GF |
+
+#### Smart Normalization Details
+
+**Purpose:** Detect true duplicates while preserving original formatting
+
+**Phone Normalization:**
+```
+"612-799-6613"       → "6127996613" (for comparison)
+"+1 612-799-6613"    → "6127996613" (detected as SAME)
+"(612) 799-6613"     → "6127996613" (detected as SAME)
+```
+**Stored as:** Original format in array (e.g., `["612-799-6613", "(612) 555-1234"]`)
+
+**Email Normalization:**
+```
+"INFO@Agency.com"    → "info@agency.com"
+" info@agency.com "  → "info@agency.com"
+```
+**Stored as:** Lowercase format
+
+**Address Normalization:**
+```
+"2521 27th ave S, Minneapolis"     → "2521 27th ave s minneapolis"
+"2521 27th Ave South, Minneapolis" → "2521 27th ave s minneapolis" (detected as SAME)
+```
+**Stored as:** Original format in array (e.g., `["2521 27th Ave S, Minneapolis, MN"]`)
+
+**LinkedIn URL Normalization:**
+```
+"https://www.linkedin.com/company/xyz/" → "linkedin.com/company/xyz"
+"LinkedIn.com/company/xyz"              → "linkedin.com/company/xyz" (detected as SAME)
+```
+**Stored as:** Original format in array
 
 ### Conflict Logging
 
@@ -180,6 +217,49 @@ Generate `merge_report.json` with:
 - **Problem:** Lose valuable multi-source data
 - **Problem:** Reduces dataset significantly
 
+### Updated Design Decision: Smart Normalization + Keep All Unique Values
+
+**Decision Date:** 2026-02-12
+**Decided By:** User + Claude Code
+**Approach:** Normalize for deduplication, but keep ALL unique values in arrays
+
+**Problem Statement:**
+When the same agency appears in multiple sources, contact info may have:
+1. **Different formatting** (same value): `"612-799-6613"` vs `"+1 612-799-6613"`
+2. **Actually different values** (legitimate multiple): Different office phone numbers, multiple email addresses
+
+**Challenge:** How do we avoid storing duplicates (formatting variations) while preserving legitimate multiple values?
+
+**Solution: Smart Normalization**
+
+For each contact field:
+1. **Normalize** the value (remove formatting, lowercase, etc.)
+2. **Compare** normalized versions to detect true duplicates
+3. **Store** original format in array (not normalized version)
+4. **Deduplicate** based on normalized comparison
+
+**Fields using this approach:**
+- ✅ **Emails** - `["info@agency.com", "sales@agency.com"]` (unique after normalization)
+- ✅ **Phones** - `["612-799-6613", "612-555-1234"]` (unique after normalization)
+- ✅ **Addresses** - `["2521 27th Ave S, Minneapolis, MN"]` (deduplicated via normalization)
+- ✅ **LinkedIn URLs** - `["https://linkedin.com/company/xyz"]` (deduplicated via normalization)
+- ✅ **Social Links** - `["facebook.com/xyz", "twitter.com/xyz"]` (stored as-is)
+
+**Benefits:**
+1. ✅ **No duplicates** - `"info@agency.com"` and `"INFO@Agency.com"` stored once
+2. ✅ **Preserve originals** - Users see the actual data, not normalized version
+3. ✅ **Multiple contacts** - Different offices/departments can have different emails/phones
+4. ✅ **Intelligent** - System is smart enough to know `"+1 612-799-6613"` = `"612-799-6613"`
+
+**UI Impact:**
+```
+Contact Info:
+  📧 info@agency.com, sales@agency.com (2 emails)
+  📞 612-799-6613, 612-555-1234 (2 phones)
+  📍 2521 27th Ave S, Minneapolis, MN
+      123 Broadway, New York, NY (2 offices)
+```
+
 ### Validation Strategy
 
 1. **Automated:** Merge script validates data integrity (no duplicate websites, required fields present)
@@ -204,29 +284,45 @@ CREATE TABLE agencies (
   -- Primary Key
   id SERIAL PRIMARY KEY,
 
-  -- === UNIVERSAL FIELDS (merged best value from all sources) ===
+  -- === IDENTITY ===
   name VARCHAR(500) NOT NULL,
   website_url VARCHAR(500) UNIQUE,
-  contact_email VARCHAR(255),          -- AS, GF only
-  phone_number VARCHAR(50),            -- AS, GF only
-  linkedin_url VARCHAR(500),           -- AS, GF only
-  full_address TEXT,                   -- AS, GF only
+
+  -- === CONTACT INFO (Primary + ALL unique values) ===
+  contact_email VARCHAR(255),          -- Primary email (first one)
+  contact_emails TEXT[],               -- ALL unique emails
+  phone_number VARCHAR(50),            -- Primary phone (first one)
+  phone_numbers TEXT[],                -- ALL unique phones
+  full_address TEXT,                   -- Primary address (prefer AS)
+  addresses TEXT[],                    -- ALL unique addresses
+  linkedin_url VARCHAR(500),           -- Primary LinkedIn URL
+  linkedin_urls TEXT[],                -- ALL unique LinkedIn URLs
+  social_links TEXT[],                 -- ALL social media links (from AS)
+
+  -- === LOCATION (from primary address) ===
   city VARCHAR(100),                   -- All 3
   state VARCHAR(50),                   -- All 3
-  country VARCHAR(50),                 -- AS only (default: USA)
-  description TEXT,                    -- All 3
-  tagline TEXT,                        -- AS, GF only
-  employee_count VARCHAR(50),          -- All 3
+  country VARCHAR(50),                 -- Default: United States
+
+  -- === DESCRIPTIVE ===
+  description TEXT,                    -- Longest description
+  tagline TEXT,                        -- Longest tagline
+
+  -- === METRICS ===
+  employee_count VARCHAR(50),          -- Prefer AS (newest)
+  employee_count_min INTEGER,          -- Parsed from "10-49" → 10
+  employee_count_max INTEGER,          -- Parsed from "10-49" → 49
+  avg_rating DECIMAL(3,2),             -- Average of all sources
+  total_reviews INTEGER,               -- Sum of all review counts
+
+  -- === LISTS (merged from all sources) ===
+  services_merged TEXT[],              -- All unique services
+  industries_merged TEXT[],            -- All unique industries
+  clients_merged TEXT[],               -- All unique clients
 
   -- === SOURCE TRACKING ===
   sources TEXT[],                      -- e.g., {'agencyspotter', 'goodfirms', 'themanifest'}
   source_count INTEGER,                -- 1, 2, or 3
-
-  -- === COMPUTED METRICS ===
-  avg_rating DECIMAL(3,2),             -- Average of all sources
-  total_reviews INTEGER,               -- Sum of all review counts
-  employee_count_min INTEGER,          -- Parsed from "10-49" → 10
-  employee_count_max INTEGER,          -- Parsed from "10-49" → 49
   data_quality_score INTEGER,          -- 0-100 based on field completeness
 
   -- === SOURCE DATA (ALL original fields as JSONB) ===
@@ -241,6 +337,9 @@ CREATE TABLE agencies (
   tags TEXT[],
   last_contact_date DATE,
 
+  -- === USER PREFERENCES ===
+  preferred_source VARCHAR(20),        -- User can set: 'agencyspotter', 'goodfirms', 'themanifest', or NULL (use merged)
+
   -- === TIMESTAMPS ===
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -254,6 +353,11 @@ CREATE INDEX idx_agencies_employee_range ON agencies(employee_count_min, employe
 CREATE INDEX idx_agencies_sources ON agencies USING GIN(sources);
 CREATE INDEX idx_agencies_rating ON agencies(avg_rating);
 CREATE INDEX idx_agencies_website ON agencies(website_url);
+
+-- Array field indexes (for searching within arrays)
+CREATE INDEX idx_agencies_contact_emails ON agencies USING GIN(contact_emails);
+CREATE INDEX idx_agencies_phone_numbers ON agencies USING GIN(phone_numbers);
+CREATE INDEX idx_agencies_services ON agencies USING GIN(services_merged);
 
 -- JSONB Indexes (for querying source data)
 CREATE INDEX idx_as_data ON agencies USING GIN(agencyspotter_data);
