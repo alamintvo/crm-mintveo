@@ -39,7 +39,12 @@
       "WebFetch(domain:neon.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:medium.com)"
+      "WebFetch(domain:medium.com)",
+      "Bash(git reset:*)",
+      "Bash(npx @opennextjs/cloudflare build:*)",
+      "Bash(node analyze-bundle.js:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx wrangler deploy:*)"
     ]
   }
 }
