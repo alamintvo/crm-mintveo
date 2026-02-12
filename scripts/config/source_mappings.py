@@ -132,9 +132,9 @@ SOURCE_MAPPINGS = {
 
 # CSV file paths
 SOURCE_FILES = {
-    "agencyspotter": "agencies_extracted_agencyspotter_20260126_cleaned.csv",
-    "goodfirms": "agencies_extracted_goodfirms_20260115.csv",
-    "themanifest": "agencies_extracted_themanifest_20260126.csv",
+    "agencyspotter": "../data/raw/agencies_extracted_agencyspotter_20260126_cleaned.csv",
+    "goodfirms": "../data/raw/agencies_extracted_goodfirms_20260115.csv",
+    "themanifest": "../data/raw/agencies_extracted_themanifest_20260126.csv",
 }
 
 # Source metadata (for reference)

@@ -44,8 +44,8 @@ from config.source_mappings import (
 )
 
 # Configuration
-OUTPUT_FILE = "merged_agencies_master.csv"
-REPORT_FILE = "merge_report.json"
+OUTPUT_FILE = "../data/processed/merged_agencies_master.csv"
+REPORT_FILE = "../data/processed/merge_report.json"
 FUZZY_MATCH_THRESHOLD = 85  # 85% similarity for name matching
 PROGRESS_INTERVAL = 100  # Print progress every N rows
 

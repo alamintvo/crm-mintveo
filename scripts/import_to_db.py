@@ -26,7 +26,7 @@ from datetime import datetime
 load_dotenv()
 
 DATABASE_URL = os.getenv('DATABASE_URL')
-CSV_FILE = 'merged_agencies_master.csv'
+CSV_FILE = '../data/processed/merged_agencies_master.csv'
 BATCH_SIZE = 100  # Insert 100 agencies at a time
 
 def parse_json_field(value):
