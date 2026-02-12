@@ -25,6 +25,8 @@ jobs:
       - name: Install dependencies
         working-directory: ./crm-app
         run: npm ci
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Build for Cloudflare
         working-directory: ./crm-app
