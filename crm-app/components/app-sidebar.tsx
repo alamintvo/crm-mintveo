@@ -5,9 +5,8 @@ import {
   Building2,
   Home,
   Settings,
-  Users,
-  BarChart3,
-  FileText,
+  AlertTriangle,
+  Copy,
 } from "lucide-react"
 
 import {
@@ -35,20 +34,18 @@ const navItems = [
     url: "/agencies",
     icon: Building2,
   },
+]
+
+const adminItems = [
   {
-    title: "Contacts",
-    url: "/contacts",
-    icon: Users,
+    title: "Duplicates",
+    url: "/admin/duplicates",
+    icon: Copy,
   },
   {
-    title: "Reports",
-    url: "/reports",
-    icon: BarChart3,
-  },
-  {
-    title: "Documents",
-    url: "/documents",
-    icon: FileText,
+    title: "Conflicts",
+    url: "/admin/conflicts",
+    icon: AlertTriangle,
   },
 ]
 
@@ -78,6 +75,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <a href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Data Quality</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>
