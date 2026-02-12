@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { sql } from "@/lib/db"
 
 export type AgencyFilters = {
   search?: string
@@ -25,106 +25,93 @@ export async function getAgencies(
   pagination: PaginationParams = { page: 1, pageSize: 50 }
 ) {
   try {
-    const where: any = {}
+    // Build WHERE conditions
+    const conditions: string[] = []
 
-    // Search filter (name or website)
+    // Note: Neon serverless driver doesn't support parameterized queries easily,
+    // but we'll sanitize inputs to prevent SQL injection
+
     if (filters.search) {
-      where.OR = [
-        { name: { contains: filters.search, mode: "insensitive" } },
-        { websiteUrl: { contains: filters.search, mode: "insensitive" } },
-      ]
+      const searchEscaped = filters.search.replace(/'/g, "''")
+      conditions.push(`(name ILIKE '%${searchEscaped}%' OR website_url ILIKE '%${searchEscaped}%')`)
     }
 
-    // Contact status filter
     if (filters.contactStatus) {
-      where.contactStatus = filters.contactStatus
+      const statusEscaped = filters.contactStatus.replace(/'/g, "''")
+      conditions.push(`contact_status = '${statusEscaped}'`)
     }
 
-    // Location filters
     if (filters.city) {
-      where.city = { contains: filters.city, mode: "insensitive" }
+      const cityEscaped = filters.city.replace(/'/g, "''")
+      conditions.push(`city ILIKE '%${cityEscaped}%'`)
     }
+
     if (filters.state) {
-      where.state = filters.state
+      const stateEscaped = filters.state.replace(/'/g, "''")
+      conditions.push(`state = '${stateEscaped}'`)
     }
+
     if (filters.country) {
-      where.country = filters.country
+      const countryEscaped = filters.country.replace(/'/g, "''")
+      conditions.push(`country = '${countryEscaped}'`)
     }
 
-    // Employee count range
-    if (filters.minEmployees !== undefined || filters.maxEmployees !== undefined) {
-      where.AND = where.AND || []
-      if (filters.minEmployees !== undefined) {
-        where.AND.push({ employeeCountMin: { gte: filters.minEmployees } })
-      }
-      if (filters.maxEmployees !== undefined) {
-        where.AND.push({ employeeCountMax: { lte: filters.maxEmployees } })
-      }
+    if (filters.minEmployees !== undefined) {
+      conditions.push(`employee_count_min >= ${filters.minEmployees}`)
     }
 
-    // Rating filter
+    if (filters.maxEmployees !== undefined) {
+      conditions.push(`employee_count_max <= ${filters.maxEmployees}`)
+    }
+
     if (filters.minRating !== undefined) {
-      where.avgRating = { gte: filters.minRating }
+      conditions.push(`avg_rating >= ${filters.minRating}`)
     }
 
-    // Sources filter
     if (filters.sources && filters.sources.length > 0) {
-      where.sources = {
-        hasSome: filters.sources,
-      }
+      const sourcesArray = `{${filters.sources.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',')}}`
+      conditions.push(`sources && '${sourcesArray}'::text[]`)
     }
 
-    // Tags filter
     if (filters.tags && filters.tags.length > 0) {
-      where.tags = {
-        hasSome: filters.tags,
-      }
+      const tagsArray = `{${filters.tags.map(t => `"${t.replace(/"/g, '\\"')}"`).join(',')}}`
+      conditions.push(`tags && '${tagsArray}'::text[]`)
     }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
     // Calculate pagination
-    const skip = (pagination.page - 1) * pagination.pageSize
-    const take = pagination.pageSize
+    const offset = (pagination.page - 1) * pagination.pageSize
+    const limit = pagination.pageSize
 
-    // Fetch agencies and total count
-    const [agenciesRaw, totalCount] = await Promise.all([
-      prisma.agency.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          websiteUrl: true,
-          contactEmail: true,
-          phoneNumber: true,
-          city: true,
-          state: true,
-          country: true,
-          employeeCount: true,
-          avgRating: true,
-          totalReviews: true,
-          contactStatus: true,
-          sources: true,
-          sourceCount: true,
-          tags: true,
-          lastContactDate: true,
-        },
-      }),
-      prisma.agency.count({ where }),
+    // Fetch agencies and total count in parallel
+    const [agencies, countResult] = await Promise.all([
+      sql`
+        SELECT
+          id, name, website_url as "websiteUrl", contact_email as "contactEmail",
+          phone_number as "phoneNumber", city, state, country, employee_count as "employeeCount",
+          avg_rating as "avgRating", total_reviews as "totalReviews", contact_status as "contactStatus",
+          sources, source_count as "sourceCount", tags, last_contact_date as "lastContactDate"
+        FROM agencies
+        ${sql.unsafe(whereClause)}
+        ORDER BY name ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `,
+      sql`SELECT COUNT(*) as count FROM agencies ${sql.unsafe(whereClause)}`
     ])
 
-    // Convert Decimal to number for client components
-    const agencies = agenciesRaw.map((agency) => ({
+    const totalCount = Number(countResult[0].count)
+    const totalPages = Math.ceil(totalCount / pagination.pageSize)
+
+    // Convert Decimal/string to number for avgRating
+    const agenciesFormatted = agencies.map((agency: any) => ({
       ...agency,
       avgRating: agency.avgRating ? Number(agency.avgRating) : null,
     }))
 
-    const totalPages = Math.ceil(totalCount / pagination.pageSize)
-
     return {
       success: true,
-      data: agencies,
+      data: agenciesFormatted,
       pagination: {
         page: pagination.page,
         pageSize: pagination.pageSize,
@@ -150,38 +137,21 @@ export async function getAgencies(
 
 export async function getAgencyById(id: number) {
   try {
-    const agency = await prisma.agency.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        websiteUrl: true,
-        contactEmail: true,
-        phoneNumber: true,
-        linkedinUrl: true,
-        city: true,
-        state: true,
-        country: true,
-        description: true,
-        tagline: true,
-        employeeCount: true,
-        avgRating: true,
-        totalReviews: true,
-        sources: true,
-        servicesMerged: true,
-        industriesMerged: true,
-        clientsMerged: true,
-        agencyspotterData: true,
-        goodfirmsData: true,
-        themanifestData: true,
-        contactStatus: true,
-        tags: true,
-        notes: true,
-        lastContactDate: true,
-      },
-    })
+    const result = await sql`
+      SELECT
+        id, name, website_url as "websiteUrl", contact_email as "contactEmail",
+        phone_number as "phoneNumber", linkedin_url as "linkedinUrl",
+        city, state, country, description, tagline, employee_count as "employeeCount",
+        avg_rating as "avgRating", total_reviews as "totalReviews", sources,
+        services_merged as "servicesMerged", industries_merged as "industriesMerged",
+        clients_merged as "clientsMerged", agencyspotter_data as "agencyspotterData",
+        goodfirms_data as "goodfirmsData", themanifest_data as "themanifestData",
+        contact_status as "contactStatus", tags, notes, last_contact_date as "lastContactDate"
+      FROM agencies
+      WHERE id = ${id}
+    `
 
-    if (!agency) {
+    if (result.length === 0) {
       return {
         success: false,
         error: "Agency not found",
@@ -189,7 +159,8 @@ export async function getAgencyById(id: number) {
       }
     }
 
-    // Convert Decimal to number
+    const agency = result[0]
+
     return {
       success: true,
       data: {
@@ -209,22 +180,24 @@ export async function getAgencyById(id: number) {
 
 export async function updateContactStatus(agencyId: number, newStatus: string) {
   try {
-    const agency = await prisma.agency.update({
-      where: { id: agencyId },
-      data: {
-        contactStatus: newStatus,
-        contactStatusChangedAt: new Date(),
-      },
-      select: {
-        id: true,
-        contactStatus: true,
-        contactStatusChangedAt: true,
-      },
-    })
+    const result = await sql`
+      UPDATE agencies
+      SET contact_status = ${newStatus}, contact_status_changed_at = NOW()
+      WHERE id = ${agencyId}
+      RETURNING id, contact_status as "contactStatus", contact_status_changed_at as "contactStatusChangedAt"
+    `
+
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: "Agency not found",
+        data: null,
+      }
+    }
 
     return {
       success: true,
-      data: agency,
+      data: result[0],
     }
   } catch (error) {
     console.error("Error updating contact status:", error)
@@ -238,22 +211,24 @@ export async function updateContactStatus(agencyId: number, newStatus: string) {
 
 export async function updateNotes(agencyId: number, notes: string) {
   try {
-    const agency = await prisma.agency.update({
-      where: { id: agencyId },
-      data: {
-        notes,
-        updatedAt: new Date(),
-      },
-      select: {
-        id: true,
-        notes: true,
-        updatedAt: true,
-      },
-    })
+    const result = await sql`
+      UPDATE agencies
+      SET notes = ${notes}, updated_at = NOW()
+      WHERE id = ${agencyId}
+      RETURNING id, notes, updated_at as "updatedAt"
+    `
+
+    if (result.length === 0) {
+      return {
+        success: false,
+        error: "Agency not found",
+        data: null,
+      }
+    }
 
     return {
       success: true,
-      data: agency,
+      data: result[0],
     }
   } catch (error) {
     console.error("Error updating notes:", error)
@@ -268,30 +243,16 @@ export async function updateNotes(agencyId: number, notes: string) {
 export async function getUniqueFilterValues() {
   try {
     const [states, countries, sources] = await Promise.all([
-      prisma.agency.findMany({
-        where: { state: { not: null } },
-        select: { state: true },
-        distinct: ["state"],
-        orderBy: { state: "asc" },
-      }),
-      prisma.agency.findMany({
-        where: { country: { not: null } },
-        select: { country: true },
-        distinct: ["country"],
-        orderBy: { country: "asc" },
-      }),
-      prisma.$queryRaw<{ source: string }[]>`
-        SELECT DISTINCT unnest(sources) as source
-        FROM agencies
-        ORDER BY source
-      `,
+      sql`SELECT DISTINCT state FROM agencies WHERE state IS NOT NULL ORDER BY state ASC`,
+      sql`SELECT DISTINCT country FROM agencies WHERE country IS NOT NULL ORDER BY country ASC`,
+      sql`SELECT DISTINCT unnest(sources) as source FROM agencies ORDER BY source ASC`,
     ])
 
     return {
       success: true,
-      states: states.map((s) => s.state!),
-      countries: countries.map((c) => c.country!),
-      sources: sources.map((s) => s.source),
+      states: states.map((s: any) => s.state),
+      countries: countries.map((c: any) => c.country),
+      sources: sources.map((s: any) => s.source),
     }
   } catch (error) {
     console.error("Error fetching filter values:", error)
@@ -303,4 +264,3 @@ export async function getUniqueFilterValues() {
     }
   }
 }
-
