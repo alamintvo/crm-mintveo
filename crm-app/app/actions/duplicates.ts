@@ -79,7 +79,7 @@ export async function getDuplicatePairs(): Promise<{
           servicesMerged: agency.servicesMerged || null,
           industriesMerged: agency.industriesMerged || null,
           clientsMerged: agency.clientsMerged || null,
-        })),
+        } as DuplicateAgency)),
       })
     }
 

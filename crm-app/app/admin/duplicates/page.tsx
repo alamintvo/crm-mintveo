@@ -4,8 +4,8 @@ import * as React from "react"
 import { getDuplicatePairs, mergeDuplicates, DuplicatePair } from "@/app/actions/duplicates"
 import { DuplicateMergeCard } from "@/components/duplicate-merge-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, CheckCircle2, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function DuplicatesPage() {
@@ -15,6 +15,7 @@ export default function DuplicatesPage() {
   const [mergingId, setMergingId] = React.useState<string | null>(null)
   const [mergedCount, setMergedCount] = React.useState(0)
   const [skippedNames, setSkippedNames] = React.useState<Set<string>>(new Set())
+  const [currentIndex, setCurrentIndex] = React.useState(0)
 
   React.useEffect(() => {
     loadDuplicates()
@@ -40,14 +41,20 @@ export default function DuplicatesPage() {
 
     if (result.success) {
       // Remove the merged pair from the list
-      setDuplicates((prev) =>
-        prev
+      setDuplicates((prev) => {
+        const updated = prev
           .map((dup) => ({
             ...dup,
             agencies: dup.agencies.filter((a) => a.id !== secondaryId),
           }))
-          .filter((dup) => dup.agencies.length > 1) // Remove if only 1 agency left
-      )
+          .filter((dup) => dup.agencies.length > 1)
+        // Adjust index if we're past the end of the new filtered list
+        const newPending = updated.filter((dup) => !skippedNames.has(dup.normalizedName))
+        if (currentIndex >= newPending.length && newPending.length > 0) {
+          setCurrentIndex(newPending.length - 1)
+        }
+        return updated
+      })
       setMergedCount((prev) => prev + 1)
     } else {
       alert(`Failed to merge: ${result.error}`)
@@ -57,8 +64,21 @@ export default function DuplicatesPage() {
   }
 
   const handleSkip = (normalizedName: string) => {
-    setSkippedNames((prev) => new Set(prev).add(normalizedName))
+    setSkippedNames((prev) => {
+      const next = new Set(prev).add(normalizedName)
+      // Adjust index if we're at the end after skip
+      const remaining = duplicates.filter((dup) => !next.has(dup.normalizedName))
+      if (currentIndex >= remaining.length && remaining.length > 0) {
+        setCurrentIndex(remaining.length - 1)
+      }
+      return next
+    })
   }
+
+  const pendingDuplicates = duplicates.filter((dup) => !skippedNames.has(dup.normalizedName))
+  const currentDuplicate = pendingDuplicates[currentIndex]
+  const hasNext = currentIndex < pendingDuplicates.length - 1
+  const hasPrev = currentIndex > 0
 
   if (loading) {
     return (
@@ -105,7 +125,7 @@ export default function DuplicatesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">
-              {duplicates.filter((dup) => !skippedNames.has(dup.normalizedName)).length}
+              {pendingDuplicates.length}
             </div>
             <p className="text-xs text-slate-500 mt-1">
               Groups to review
@@ -208,8 +228,37 @@ export default function DuplicatesPage() {
         </AlertDescription>
       </Alert>
 
-      {/* Duplicate List */}
-      {duplicates.filter((dup) => !skippedNames.has(dup.normalizedName)).length === 0 ? (
+      {/* Navigation */}
+      {pendingDuplicates.length > 0 && (
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-sm text-slate-600">
+            Showing {currentIndex + 1} of {pendingDuplicates.length} duplicate groups
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setCurrentIndex(currentIndex - 1)}
+              disabled={!hasPrev}
+              variant="outline"
+              size="sm"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              onClick={() => setCurrentIndex(currentIndex + 1)}
+              disabled={!hasNext}
+              variant="outline"
+              size="sm"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Current Duplicate */}
+      {pendingDuplicates.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -225,20 +274,16 @@ export default function DuplicatesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {duplicates
-            .filter((dup) => !skippedNames.has(dup.normalizedName))
-            .map((dup) => (
-              <DuplicateMergeCard
-                key={dup.normalizedName}
-                agencies={dup.agencies}
-                normalizedName={dup.normalizedName}
-                onMerge={handleMerge}
-                onSkip={handleSkip}
-                isMerging={mergingId === `${dup.agencies[0]?.id}-${dup.agencies[1]?.id}`}
-              />
-            ))}
-        </div>
+        currentDuplicate && (
+          <DuplicateMergeCard
+            key={currentDuplicate.normalizedName}
+            agencies={currentDuplicate.agencies}
+            normalizedName={currentDuplicate.normalizedName}
+            onMerge={handleMerge}
+            onSkip={handleSkip}
+            isMerging={mergingId === `${currentDuplicate.agencies[0]?.id}-${currentDuplicate.agencies[1]?.id}`}
+          />
+        )
       )}
     </div>
   )
