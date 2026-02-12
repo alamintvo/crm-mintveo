@@ -32,11 +32,11 @@ export default function DuplicatesPage() {
     setLoading(false)
   }
 
-  const handleMerge = async (primaryId: number, secondaryId: number) => {
+  const handleMerge = async (primaryId: number, secondaryId: number, websiteToKeep: string | null) => {
     const mergeKey = `${primaryId}-${secondaryId}`
     setMergingId(mergeKey)
 
-    const result = await mergeDuplicates(primaryId, secondaryId)
+    const result = await mergeDuplicates(primaryId, secondaryId, websiteToKeep)
 
     if (result.success) {
       // Remove the merged pair from the list

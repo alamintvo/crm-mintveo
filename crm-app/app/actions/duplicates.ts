@@ -144,7 +144,8 @@ function pickLongest(str1: string | null, str2: string | null): string | null {
 
 export async function mergeDuplicates(
   primaryId: number,
-  secondaryId: number
+  secondaryId: number,
+  websiteToKeep?: string | null
 ): Promise<{
   success: boolean
   mergedId?: number
@@ -171,7 +172,7 @@ export async function mergeDuplicates(
     const mergedData = {
       // Identity - prefer primary
       name: p.name || s.name,
-      website_url: p.website_url || s.website_url,
+      website_url: websiteToKeep || p.website_url || s.website_url, // Use user's choice
 
       // Contact Info - Keep ALL unique values
       contact_email: p.contact_email || s.contact_email, // Primary email (first one)

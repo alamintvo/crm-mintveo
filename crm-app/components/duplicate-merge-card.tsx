@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 type DuplicateMergeCardProps = {
   agencies: DuplicateAgency[]
   normalizedName: string
-  onMerge: (primaryId: number, secondaryId: number) => Promise<void>
+  onMerge: (primaryId: number, secondaryId: number, websiteToKeep: string | null) => Promise<void>
   onSkip: (normalizedName: string) => void
   isMerging: boolean
 }
@@ -28,8 +28,6 @@ export function DuplicateMergeCard({
   const [primaryId, setPrimaryId] = React.useState<number>(agencies[0]?.id || 0)
   const [secondaryId, setSecondaryId] = React.useState<number>(agencies[1]?.id || 0)
   const [selectedWebsite, setSelectedWebsite] = React.useState<"primary" | "secondary">("primary")
-  const [selectedEmail, setSelectedEmail] = React.useState<"primary" | "secondary" | "both">("both")
-  const [selectedPhone, setSelectedPhone] = React.useState<"primary" | "secondary" | "both">("both")
 
   const primary = agencies.find((a) => a.id === primaryId)
   const secondary = agencies.find((a) => a.id === secondaryId)
@@ -82,7 +80,9 @@ export function DuplicateMergeCard({
   const mergedReviews = (primary.totalReviews || 0) + (secondary.totalReviews || 0)
 
   const handleMerge = () => {
-    onMerge(primaryId, secondaryId)
+    // Determine which website to use based on selection
+    const websiteToKeep = selectedWebsite === "primary" ? primary.websiteUrl : secondary.websiteUrl
+    onMerge(primaryId, secondaryId, websiteToKeep)
   }
 
   return (
@@ -139,106 +139,44 @@ export function DuplicateMergeCard({
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
             <ArrowRight className="h-4 w-4" />
-            Choose What to Keep
+            Merge Configuration
           </h4>
 
           <div className="space-y-4">
-            {/* Website Selection */}
+            {/* Website Selection - ONLY manual choice */}
             {differentWebsites && (
               <div>
                 <Label className="text-sm font-medium text-blue-900 mb-2 block">
-                  Website URL (⚠️ Different):
+                  ⚠️ Choose which Website URL to keep:
                 </Label>
                 <RadioGroup value={selectedWebsite} onValueChange={(v) => setSelectedWebsite(v as any)}>
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex items-center space-x-2 mb-2">
                     <RadioGroupItem value="primary" id="website-primary" />
-                    <Label htmlFor="website-primary" className="text-sm font-normal cursor-pointer">
-                      {primary.websiteUrl}
+                    <Label htmlFor="website-primary" className="text-sm font-normal cursor-pointer flex-1">
+                      <span className="font-medium">Record A:</span> {primary.websiteUrl}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="secondary" id="website-secondary" />
-                    <Label htmlFor="website-secondary" className="text-sm font-normal cursor-pointer">
-                      {secondary.websiteUrl}
+                    <Label htmlFor="website-secondary" className="text-sm font-normal cursor-pointer flex-1">
+                      <span className="font-medium">Record B:</span> {secondary.websiteUrl}
                     </Label>
                   </div>
-                </RadioGroup>
-              </div>
-            )}
-
-            {/* Email Selection */}
-            {(primary.contactEmail || secondary.contactEmail) && (
-              <div>
-                <Label className="text-sm font-medium text-blue-900 mb-2 block">
-                  Email:
-                </Label>
-                <RadioGroup value={selectedEmail} onValueChange={(v) => setSelectedEmail(v as any)}>
-                  {primary.contactEmail && (
-                    <div className="flex items-center space-x-2 mb-1">
-                      <RadioGroupItem value="primary" id="email-primary" />
-                      <Label htmlFor="email-primary" className="text-sm font-normal cursor-pointer">
-                        {primary.contactEmail} (from Record A)
-                      </Label>
-                    </div>
-                  )}
-                  {secondary.contactEmail && (
-                    <div className="flex items-center space-x-2 mb-1">
-                      <RadioGroupItem value="secondary" id="email-secondary" />
-                      <Label htmlFor="email-secondary" className="text-sm font-normal cursor-pointer">
-                        {secondary.contactEmail} (from Record B)
-                      </Label>
-                    </div>
-                  )}
-                  {primary.contactEmail && secondary.contactEmail && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="both" id="email-both" />
-                      <Label htmlFor="email-both" className="text-sm font-normal cursor-pointer">
-                        Keep both (as per PROJECT_PLAN.md)
-                      </Label>
-                    </div>
-                  )}
-                </RadioGroup>
-              </div>
-            )}
-
-            {/* Phone Selection */}
-            {(primary.phoneNumber || secondary.phoneNumber) && (
-              <div>
-                <Label className="text-sm font-medium text-blue-900 mb-2 block">
-                  Phone:
-                </Label>
-                <RadioGroup value={selectedPhone} onValueChange={(v) => setSelectedPhone(v as any)}>
-                  {primary.phoneNumber && (
-                    <div className="flex items-center space-x-2 mb-1">
-                      <RadioGroupItem value="primary" id="phone-primary" />
-                      <Label htmlFor="phone-primary" className="text-sm font-normal cursor-pointer">
-                        {primary.phoneNumber} (from Record A)
-                      </Label>
-                    </div>
-                  )}
-                  {secondary.phoneNumber && (
-                    <div className="flex items-center space-x-2 mb-1">
-                      <RadioGroupItem value="secondary" id="phone-secondary" />
-                      <Label htmlFor="phone-secondary" className="text-sm font-normal cursor-pointer">
-                        {secondary.phoneNumber} (from Record B)
-                      </Label>
-                    </div>
-                  )}
-                  {primary.phoneNumber && secondary.phoneNumber && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="both" id="phone-both" />
-                      <Label htmlFor="phone-both" className="text-sm font-normal cursor-pointer">
-                        Keep both (as per PROJECT_PLAN.md)
-                      </Label>
-                    </div>
-                  )}
                 </RadioGroup>
               </div>
             )}
 
             {/* Auto-merge info */}
-            <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
-              <strong>Auto-merged:</strong> Rating (averaged), Reviews (summed), Services/Industries/Clients (combined), Source data (merged)
+            <div className="text-xs text-blue-700 bg-blue-100 p-3 rounded space-y-1">
+              <div><strong>Auto-merged (as per PROJECT_PLAN.md):</strong></div>
+              <div className="ml-2">
+                • <strong>Emails & Phones:</strong> Keep ALL unique values in arrays<br />
+                • <strong>Locations:</strong> City, State, Country (combined unique)<br />
+                • <strong>Ratings:</strong> Averaged across sources<br />
+                • <strong>Reviews:</strong> Sum of all reviews<br />
+                • <strong>Services/Industries/Clients:</strong> Union of all unique values<br />
+                • <strong>Source Data:</strong> All JSONB data merged
+              </div>
             </div>
           </div>
         </div>
