@@ -448,6 +448,8 @@ function ComparisonView({
     "Name",
     "Agency Name",
     "Company Name",
+    "Tagline",
+    "Description",
     "City",
     "State",
     "Country",
@@ -470,11 +472,6 @@ function ComparisonView({
     "Employees",
     "Employee Count",
     "Team Size",
-    "Description",
-    "About",
-    "Tagline",
-    "Services",
-    "Industries",
     "Specialties",
   ]
 
