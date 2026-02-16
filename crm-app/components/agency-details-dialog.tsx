@@ -230,6 +230,41 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
 
               {/* Sidebar - 4 columns */}
               <div className="col-span-4 space-y-6">
+                {/* Status Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Contact Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2">Current Status</p>
+                      <Badge
+                        variant={
+                          agency.contactStatus === "contacted" ? "default" :
+                          agency.contactStatus === "interested" ? "default" :
+                          agency.contactStatus === "not_interested" ? "destructive" :
+                          "secondary"
+                        }
+                        className="text-sm px-3 py-1"
+                      >
+                        {agency.contactStatus.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                      </Badge>
+                    </div>
+                    {agency.lastContactDate && (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">Last Contact</p>
+                        <p className="text-sm text-slate-900">
+                          {new Date(agency.lastContactDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Contact Card */}
                 <Card>
                   <CardHeader>
@@ -338,6 +373,69 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
   )
 }
 
+function SourceHeader({ config }: { config: { label: string; headerBg: string; url: string } }) {
+  const [faviconError, setFaviconError] = React.useState(false)
+
+  return (
+    <div className={`${config.headerBg} text-white px-3 py-2 rounded-md text-center`}>
+      <div className="flex items-center justify-center gap-2">
+        {!faviconError ? (
+          <img
+            src={getFaviconUrl(config.url)}
+            alt={config.label}
+            className="w-4 h-4 opacity-90"
+            onError={() => setFaviconError(true)}
+          />
+        ) : (
+          <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
+            {config.label.charAt(0)}
+          </div>
+        )}
+        <span className="font-semibold text-sm">{config.label}</span>
+      </div>
+    </div>
+  )
+}
+
+function UrlDisplay({ value }: { value: string }) {
+  const [faviconError, setFaviconError] = React.useState(false)
+
+  const domainName = React.useMemo(() => {
+    try {
+      const url = new URL(value)
+      return url.hostname.replace('www.', '')
+    } catch {
+      return value
+    }
+  }, [value])
+
+  return (
+    <a
+      href={value}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors group max-w-full"
+    >
+      {!faviconError ? (
+        <img
+          src={getFaviconUrl(value)}
+          alt="favicon"
+          className="w-4 h-4 flex-shrink-0"
+          onError={() => setFaviconError(true)}
+        />
+      ) : (
+        <div className="w-4 h-4 rounded-full bg-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 flex-shrink-0">
+          {domainName.charAt(0).toUpperCase()}
+        </div>
+      )}
+      <span className="text-slate-700 group-hover:text-slate-900 text-xs font-medium truncate">
+        {domainName}
+      </span>
+      <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
+    </a>
+  )
+}
+
 function ComparisonView({
   sources,
   sourceConfig,
@@ -423,27 +521,7 @@ function ComparisonView({
         <div className="font-semibold text-slate-700 text-sm">Field</div>
         {activeSources.map(([sourceName, _]) => {
           const config = sourceConfig[sourceName as keyof typeof sourceConfig]
-          const [faviconError, setFaviconError] = React.useState(false)
-
-          return (
-            <div key={sourceName} className={`${config.headerBg} text-white px-3 py-2 rounded-md text-center`}>
-              <div className="flex items-center justify-center gap-2">
-                {!faviconError ? (
-                  <img
-                    src={getFaviconUrl(config.url)}
-                    alt={config.label}
-                    className="w-4 h-4 opacity-90"
-                    onError={() => setFaviconError(true)}
-                  />
-                ) : (
-                  <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
-                    {config.label.charAt(0)}
-                  </div>
-                )}
-                <span className="font-semibold text-sm">{config.label}</span>
-              </div>
-            </div>
-          )
+          return <SourceHeader key={sourceName} config={config} />
         })}
       </div>
 
@@ -475,43 +553,7 @@ function ComparisonView({
                     {value === null || value === undefined || value === "" ? (
                       <span className="text-slate-400 italic">-</span>
                     ) : (fieldName.toLowerCase().includes("url") || fieldName.toLowerCase().includes("link") || fieldName.toLowerCase().includes("website") || fieldName.toLowerCase().includes("linkedin")) && String(value).startsWith("http") ? (
-                      (() => {
-                        const [urlFaviconError, setUrlFaviconError] = React.useState(false)
-                        const domainName = (() => {
-                          try {
-                            const url = new URL(String(value))
-                            return url.hostname.replace('www.', '')
-                          } catch {
-                            return String(value)
-                          }
-                        })()
-
-                        return (
-                          <a
-                            href={String(value)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors group max-w-full"
-                          >
-                            {!urlFaviconError ? (
-                              <img
-                                src={getFaviconUrl(String(value))}
-                                alt="favicon"
-                                className="w-4 h-4 flex-shrink-0"
-                                onError={() => setUrlFaviconError(true)}
-                              />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 flex-shrink-0">
-                                {domainName.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <span className="text-slate-700 group-hover:text-slate-900 text-xs font-medium truncate">
-                              {domainName}
-                            </span>
-                            <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
-                          </a>
-                        )
-                      })()
+                      <UrlDisplay value={String(value)} />
                     ) : Array.isArray(value) ? (
                       <div className="flex flex-wrap gap-1">
                         {value.slice(0, 5).map((item, idx) => (
