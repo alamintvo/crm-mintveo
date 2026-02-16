@@ -8,7 +8,6 @@ import {
   Phone,
   MapPin,
   Users,
-  Star,
   Linkedin,
   ArrowUpDown,
   ArrowUp,
@@ -281,34 +280,6 @@ export const createColumns = (
             <div className="flex items-center gap-1.5 text-sm">
               <Users className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-medium">{count}</span>
-            </div>
-          ) : (
-            <span className="text-muted-foreground text-sm">-</span>
-          )}
-        </div>
-      )
-    },
-    enableSorting: true,
-  },
-  {
-    accessorKey: "avgRating",
-    header: ({ column }) => <SortableHeader column={column}>Rating</SortableHeader>,
-    cell: ({ row }) => {
-      const rating = row.getValue("avgRating") as number | null
-      const reviews = row.original.totalReviews
-      return (
-        <div className="min-w-[90px]">
-          {rating ? (
-            <div className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-              <span className="font-semibold text-sm">
-                {Number(rating).toFixed(1)}
-              </span>
-              {reviews && (
-                <span className="text-xs text-muted-foreground">
-                  ({reviews})
-                </span>
-              )}
             </div>
           ) : (
             <span className="text-muted-foreground text-sm">-</span>
