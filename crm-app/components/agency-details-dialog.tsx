@@ -443,7 +443,61 @@ function ComparisonView({
     }
   })
 
-  const sortedFields = Array.from(allFields).sort()
+  // Priority order for fields - most important first
+  const fieldPriority = [
+    "Name",
+    "Agency Name",
+    "Company Name",
+    "City",
+    "State",
+    "Country",
+    "Address",
+    "Full Address",
+    "Location",
+    "Website",
+    "Website URL",
+    "Profile URL",
+    "LinkedIn",
+    "LinkedIn URL",
+    "Phone",
+    "Phone Number",
+    "Email",
+    "Contact Email",
+    "Rating",
+    "Reviews",
+    "Founded",
+    "Year Founded",
+    "Employees",
+    "Employee Count",
+    "Team Size",
+    "Description",
+    "About",
+    "Tagline",
+    "Services",
+    "Industries",
+    "Specialties",
+  ]
+
+  const sortedFields = Array.from(allFields).sort((a, b) => {
+    const aIndex = fieldPriority.findIndex(
+      (p) => p.toLowerCase() === a.toLowerCase() || a.toLowerCase().includes(p.toLowerCase())
+    )
+    const bIndex = fieldPriority.findIndex(
+      (p) => p.toLowerCase() === b.toLowerCase() || b.toLowerCase().includes(p.toLowerCase())
+    )
+
+    // If both have priority, sort by priority order
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex
+    }
+    // If only a has priority, it comes first
+    if (aIndex !== -1) return -1
+    // If only b has priority, it comes first
+    if (bIndex !== -1) return 1
+    // If neither has priority, sort alphabetically
+    return a.localeCompare(b)
+  })
+
   const activeSources = Object.entries(sources).filter(([_, data]) => data !== null)
 
   return (
