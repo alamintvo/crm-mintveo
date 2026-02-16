@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ExternalLink, Star, Building2, Users, MapPin, Mail, Phone, Globe, Linkedin, Save, Tag, Briefcase, Target, Award, Clock } from "lucide-react"
+import { ExternalLink, Star, Building2, Users, MapPin, Mail, Phone, Globe, Linkedin, Save, Briefcase, Clock } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -211,86 +210,6 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
             <div className="grid grid-cols-12 gap-6">
               {/* Main Content - 8 columns */}
               <div className="col-span-8 space-y-6">
-                {/* Description */}
-                {agency.description && (
-                  <section>
-                    <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-slate-500" />
-                      About
-                    </h3>
-                    <p className="text-sm text-slate-700 leading-relaxed">{agency.description}</p>
-                  </section>
-                )}
-
-                {/* Services & Industries */}
-                <div className="grid grid-cols-2 gap-6">
-                  {agency.servicesMerged && agency.servicesMerged.length > 0 && (
-                    <section>
-                      <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                        <Target className="h-4 w-4 text-slate-500" />
-                        Services ({agency.servicesMerged.length})
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {agency.servicesMerged.slice(0, 20).map((service, idx) => (
-                          <Badge key={idx} variant="secondary" className="font-normal text-xs">
-                            {service}
-                          </Badge>
-                        ))}
-                        {agency.servicesMerged.length > 20 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{agency.servicesMerged.length - 20} more
-                          </Badge>
-                        )}
-                      </div>
-                    </section>
-                  )}
-
-                  {agency.industriesMerged && agency.industriesMerged.length > 0 && (
-                    <section>
-                      <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-slate-500" />
-                        Industries ({agency.industriesMerged.length})
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {agency.industriesMerged.slice(0, 20).map((industry, idx) => (
-                          <Badge key={idx} variant="outline" className="font-normal text-xs">
-                            {industry}
-                          </Badge>
-                        ))}
-                        {agency.industriesMerged.length > 20 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{agency.industriesMerged.length - 20} more
-                          </Badge>
-                        )}
-                      </div>
-                    </section>
-                  )}
-                </div>
-
-                {/* Clients */}
-                {agency.clientsMerged && agency.clientsMerged.length > 0 && (
-                  <section>
-                    <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                      <Award className="h-4 w-4 text-slate-500" />
-                      Notable Clients ({agency.clientsMerged.length})
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {agency.clientsMerged.slice(0, 30).map((client, idx) => (
-                        <Badge key={idx} variant="secondary" className="font-normal text-xs">
-                          {client}
-                        </Badge>
-                      ))}
-                      {agency.clientsMerged.length > 30 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{agency.clientsMerged.length - 30} more
-                        </Badge>
-                      )}
-                    </div>
-                  </section>
-                )}
-
-                <Separator className="my-6" />
-
                 {/* Directory Data - Comparison View */}
                 {availableSources.length > 0 && (
                   <section>
@@ -450,6 +369,9 @@ function ComparisonView({
     "Company Name",
     "Tagline",
     "Description",
+    "Employees",
+    "Employee Count",
+    "Team Size",
     "City",
     "State",
     "Country",
@@ -469,9 +391,6 @@ function ComparisonView({
     "Reviews",
     "Founded",
     "Year Founded",
-    "Employees",
-    "Employee Count",
-    "Team Size",
     "Specialties",
   ]
 
