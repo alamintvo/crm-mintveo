@@ -1,7 +1,7 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "agency-crm"
 main = ".open-next/worker.js"
-account_id = "850b535c01a007ed750c5113673a95b7"
+account_id = "fd7d3dbcac65bc51ce9bfb466cba04f8"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
