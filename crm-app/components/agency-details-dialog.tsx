@@ -291,37 +291,20 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
 
                 <Separator className="my-6" />
 
-                {/* Directory Data - Side by Side */}
+                {/* Directory Data - Comparison View */}
                 {availableSources.length > 0 && (
                   <section>
                     <h3 className="text-base font-semibold text-slate-900 mb-4">
-                      Directory Information
+                      Directory Comparison
                     </h3>
-                    <div className="space-y-4">
-                      {availableSources.includes("agencyspotter") && agency.agencyspotterData && (
-                        <SourceCard
-                          sourceName="agencyspotter"
-                          data={agency.agencyspotterData}
-                          config={sourceConfig.agencyspotter}
-                        />
-                      )}
-
-                      {availableSources.includes("goodfirms") && agency.goodfirmsData && (
-                        <SourceCard
-                          sourceName="goodfirms"
-                          data={agency.goodfirmsData}
-                          config={sourceConfig.goodfirms}
-                        />
-                      )}
-
-                      {availableSources.includes("themanifest") && agency.themanifestData && (
-                        <SourceCard
-                          sourceName="themanifest"
-                          data={agency.themanifestData}
-                          config={sourceConfig.themanifest}
-                        />
-                      )}
-                    </div>
+                    <ComparisonView
+                      sources={{
+                        agencyspotter: availableSources.includes("agencyspotter") ? agency.agencyspotterData : null,
+                        goodfirms: availableSources.includes("goodfirms") ? agency.goodfirmsData : null,
+                        themanifest: availableSources.includes("themanifest") ? agency.themanifestData : null,
+                      }}
+                      sourceConfig={sourceConfig}
+                    />
                   </section>
                 )}
               </div>
@@ -436,45 +419,185 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
   )
 }
 
-function SourceCard({
-  sourceName,
-  data,
-  config,
+function ComparisonView({
+  sources,
+  sourceConfig,
 }: {
-  sourceName: string
-  data: any
-  config: { label: string; headerBg: string; borderColor: string; url: string }
+  sources: {
+    agencyspotter: any
+    goodfirms: any
+    themanifest: any
+  }
+  sourceConfig: any
 }) {
+  // Collect all unique field names from all sources
+  const allFields = new Set<string>()
+
+  Object.values(sources).forEach((data) => {
+    if (data && typeof data === "object") {
+      Object.keys(data).forEach((key) => {
+        if (key !== "Projects") { // We'll handle projects separately
+          allFields.add(key)
+        }
+      })
+    }
+  })
+
+  const sortedFields = Array.from(allFields).sort()
+  const activeSources = Object.entries(sources).filter(([_, data]) => data !== null)
+
   return (
-    <Card className={`border-2 ${config.borderColor} overflow-hidden`}>
-      <div className={`${config.headerBg} px-4 py-3 flex items-center justify-between`}>
-        <div className="flex items-center gap-2">
-          <img
-            src={getFaviconUrl(config.url)}
-            alt={config.label}
-            className="w-5 h-5 opacity-90"
-            onError={(e) => {
-              e.currentTarget.style.display = "none"
-            }}
-          />
-          <h4 className="text-white font-semibold text-sm">{config.label}</h4>
-        </div>
-        {data["Profile URL"] && (
-          <a
-            href={data["Profile URL"]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white/90 hover:text-white transition-colors flex items-center gap-1 text-xs"
-          >
-            View Profile
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
+    <div className="space-y-6">
+      {/* Header with source names */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: `200px repeat(${activeSources.length}, 1fr)` }}>
+        <div className="font-semibold text-slate-700 text-sm">Field</div>
+        {activeSources.map(([sourceName, _]) => {
+          const config = sourceConfig[sourceName as keyof typeof sourceConfig]
+          return (
+            <div key={sourceName} className={`${config.headerBg} text-white px-3 py-2 rounded-md text-center`}>
+              <div className="flex items-center justify-center gap-2">
+                <img
+                  src={getFaviconUrl(config.url)}
+                  alt={config.label}
+                  className="w-4 h-4 opacity-90"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+                <span className="font-semibold text-sm">{config.label}</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
-      <CardContent className="p-4">
-        <SourceDataDisplay data={data} />
-      </CardContent>
-    </Card>
+
+      {/* Field rows */}
+      <div className="space-y-2">
+        {sortedFields.map((fieldName) => {
+          const hasData = activeSources.some(([sourceName, data]) => {
+            const value = data?.[fieldName]
+            return value !== null && value !== undefined && value !== ""
+          })
+
+          if (!hasData) return null
+
+          return (
+            <div
+              key={fieldName}
+              className="grid gap-3 items-start border-b border-slate-100 pb-3"
+              style={{ gridTemplateColumns: `200px repeat(${activeSources.length}, 1fr)` }}
+            >
+              <div className="text-xs font-medium text-slate-600 uppercase tracking-wide pt-2">
+                {fieldName.replace(/_/g, " ")}
+              </div>
+              {activeSources.map(([sourceName, data]) => {
+                const value = data?.[fieldName]
+                const config = sourceConfig[sourceName as keyof typeof sourceConfig]
+
+                return (
+                  <div key={sourceName} className={`text-sm border-l-2 ${config.borderColor} pl-3 py-2`}>
+                    {value === null || value === undefined || value === "" ? (
+                      <span className="text-slate-400 italic">-</span>
+                    ) : fieldName.toLowerCase().includes("url") || fieldName.toLowerCase().includes("link") ? (
+                      <a
+                        href={String(value)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-700 hover:text-slate-900 flex items-center gap-1 break-all"
+                      >
+                        {String(value)}
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    ) : Array.isArray(value) ? (
+                      <div className="flex flex-wrap gap-1">
+                        {value.slice(0, 5).map((item, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs font-normal">
+                            {typeof item === "object" ? JSON.stringify(item) : String(item)}
+                          </Badge>
+                        ))}
+                        {value.length > 5 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{value.length - 5} more
+                          </Badge>
+                        )}
+                      </div>
+                    ) : typeof value === "object" ? (
+                      <pre className="text-xs bg-slate-50 p-2 rounded border overflow-auto max-h-24 font-mono">
+                        {JSON.stringify(value, null, 2)}
+                      </pre>
+                    ) : (
+                      <span className="text-slate-900">{String(value)}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Projects Section - if any source has projects */}
+      {(sources.agencyspotter?.Projects || sources.goodfirms?.Projects || sources.themanifest?.Projects) && (
+        <div className="mt-6">
+          <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-slate-500" />
+            Projects Portfolio
+          </h4>
+          <div className="space-y-4">
+            {activeSources.map(([sourceName, data]) => {
+              let projects = null
+              if (data?.Projects) {
+                try {
+                  projects = typeof data.Projects === "string" ? JSON.parse(data.Projects) : data.Projects
+                } catch (e) {
+                  console.error("Failed to parse projects:", e)
+                }
+              }
+
+              if (!projects || !Array.isArray(projects) || projects.length === 0) return null
+
+              const config = sourceConfig[sourceName as keyof typeof sourceConfig]
+
+              return (
+                <div key={sourceName}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-md ${config.headerBg} text-white text-xs font-semibold mb-2`}>
+                    <img
+                      src={getFaviconUrl(config.url)}
+                      alt={config.label}
+                      className="w-3 h-3 opacity-90"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                      }}
+                    />
+                    {config.label} ({projects.length})
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 ml-4">
+                    {projects.slice(0, 4).map((project: any, idx: number) => (
+                      <Card key={idx} className={`border-l-4 ${config.borderColor}`}>
+                        <CardContent className="p-3">
+                          {project.title && (
+                            <h5 className="font-semibold text-slate-900 text-sm mb-1">{project.title}</h5>
+                          )}
+                          {project.client && (
+                            <p className="text-xs text-slate-500 mb-2">Client: {project.client}</p>
+                          )}
+                          {project.description && (
+                            <p className="text-xs text-slate-700 line-clamp-2">{project.description}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  {projects.length > 4 && (
+                    <p className="text-xs text-slate-500 mt-2 ml-4">+{projects.length - 4} more projects</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
