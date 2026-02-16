@@ -423,17 +423,23 @@ function ComparisonView({
         <div className="font-semibold text-slate-700 text-sm">Field</div>
         {activeSources.map(([sourceName, _]) => {
           const config = sourceConfig[sourceName as keyof typeof sourceConfig]
+          const [faviconError, setFaviconError] = React.useState(false)
+
           return (
             <div key={sourceName} className={`${config.headerBg} text-white px-3 py-2 rounded-md text-center`}>
               <div className="flex items-center justify-center gap-2">
-                <img
-                  src={getFaviconUrl(config.url)}
-                  alt={config.label}
-                  className="w-4 h-4 opacity-90"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none"
-                  }}
-                />
+                {!faviconError ? (
+                  <img
+                    src={getFaviconUrl(config.url)}
+                    alt={config.label}
+                    className="w-4 h-4 opacity-90"
+                    onError={() => setFaviconError(true)}
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
+                    {config.label.charAt(0)}
+                  </div>
+                )}
                 <span className="font-semibold text-sm">{config.label}</span>
               </div>
             </div>
@@ -468,33 +474,44 @@ function ComparisonView({
                   <div key={sourceName} className={`text-sm border-l-2 ${config.borderColor} pl-3 py-2`}>
                     {value === null || value === undefined || value === "" ? (
                       <span className="text-slate-400 italic">-</span>
-                    ) : fieldName.toLowerCase().includes("url") || fieldName.toLowerCase().includes("link") ? (
-                      <a
-                        href={String(value)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors group max-w-full"
-                      >
-                        <img
-                          src={getFaviconUrl(String(value))}
-                          alt="favicon"
-                          className="w-4 h-4 flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none"
-                          }}
-                        />
-                        <span className="text-slate-700 group-hover:text-slate-900 text-xs font-medium truncate">
-                          {(() => {
-                            try {
-                              const url = new URL(String(value))
-                              return url.hostname.replace('www.', '')
-                            } catch {
-                              return String(value)
-                            }
-                          })()}
-                        </span>
-                        <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
-                      </a>
+                    ) : (fieldName.toLowerCase().includes("url") || fieldName.toLowerCase().includes("link") || fieldName.toLowerCase().includes("website") || fieldName.toLowerCase().includes("linkedin")) && String(value).startsWith("http") ? (
+                      (() => {
+                        const [urlFaviconError, setUrlFaviconError] = React.useState(false)
+                        const domainName = (() => {
+                          try {
+                            const url = new URL(String(value))
+                            return url.hostname.replace('www.', '')
+                          } catch {
+                            return String(value)
+                          }
+                        })()
+
+                        return (
+                          <a
+                            href={String(value)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors group max-w-full"
+                          >
+                            {!urlFaviconError ? (
+                              <img
+                                src={getFaviconUrl(String(value))}
+                                alt="favicon"
+                                className="w-4 h-4 flex-shrink-0"
+                                onError={() => setUrlFaviconError(true)}
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 flex-shrink-0">
+                                {domainName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="text-slate-700 group-hover:text-slate-900 text-xs font-medium truncate">
+                              {domainName}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
+                          </a>
+                        )
+                      })()
                     ) : Array.isArray(value) ? (
                       <div className="flex flex-wrap gap-1">
                         {value.slice(0, 5).map((item, idx) => (
