@@ -473,10 +473,27 @@ function ComparisonView({
                         href={String(value)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-slate-700 hover:text-slate-900 flex items-center gap-1 break-all"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors group max-w-full"
                       >
-                        {String(value)}
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        <img
+                          src={getFaviconUrl(String(value))}
+                          alt="favicon"
+                          className="w-4 h-4 flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none"
+                          }}
+                        />
+                        <span className="text-slate-700 group-hover:text-slate-900 text-xs font-medium truncate">
+                          {(() => {
+                            try {
+                              const url = new URL(String(value))
+                              return url.hostname.replace('www.', '')
+                            } catch {
+                              return String(value)
+                            }
+                          })()}
+                        </span>
+                        <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
                       </a>
                     ) : Array.isArray(value) ? (
                       <div className="flex flex-wrap gap-1">
