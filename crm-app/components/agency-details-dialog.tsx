@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -55,16 +54,22 @@ const sourceConfig = {
   agencyspotter: {
     label: "AgencySpotter",
     color: "bg-slate-700 hover:bg-slate-800",
+    headerBg: "bg-blue-600",
+    borderColor: "border-blue-200",
     url: "https://www.agencyspotter.com",
   },
   goodfirms: {
     label: "GoodFirms",
     color: "bg-slate-700 hover:bg-slate-800",
+    headerBg: "bg-green-600",
+    borderColor: "border-green-200",
     url: "https://www.goodfirms.com",
   },
   themanifest: {
     label: "The Manifest",
     color: "bg-slate-700 hover:bg-slate-800",
+    headerBg: "bg-purple-600",
+    borderColor: "border-purple-200",
     url: "https://themanifest.com",
   },
 }
@@ -286,50 +291,37 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
 
                 <Separator className="my-6" />
 
-                {/* Directory Data */}
+                {/* Directory Data - Side by Side */}
                 {availableSources.length > 0 && (
                   <section>
                     <h3 className="text-base font-semibold text-slate-900 mb-4">
                       Directory Information
                     </h3>
-                    <Tabs defaultValue={availableSources[0]} className="w-full">
-                      <TabsList className="mb-4">
-                        {availableSources.map((source) => {
-                          const config = sourceConfig[source as keyof typeof sourceConfig]
-                          return (
-                            <TabsTrigger key={source} value={source} className="gap-2">
-                              <img
-                                src={getFaviconUrl(config?.url)}
-                                alt={config?.label}
-                                className="w-4 h-4"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none"
-                                }}
-                              />
-                              {config?.label || source}
-                            </TabsTrigger>
-                          )
-                        })}
-                      </TabsList>
-
+                    <div className="space-y-4">
                       {availableSources.includes("agencyspotter") && agency.agencyspotterData && (
-                        <TabsContent value="agencyspotter" className="mt-0">
-                          <SourceDataDisplay data={agency.agencyspotterData} />
-                        </TabsContent>
+                        <SourceCard
+                          sourceName="agencyspotter"
+                          data={agency.agencyspotterData}
+                          config={sourceConfig.agencyspotter}
+                        />
                       )}
 
                       {availableSources.includes("goodfirms") && agency.goodfirmsData && (
-                        <TabsContent value="goodfirms" className="mt-0">
-                          <SourceDataDisplay data={agency.goodfirmsData} />
-                        </TabsContent>
+                        <SourceCard
+                          sourceName="goodfirms"
+                          data={agency.goodfirmsData}
+                          config={sourceConfig.goodfirms}
+                        />
                       )}
 
                       {availableSources.includes("themanifest") && agency.themanifestData && (
-                        <TabsContent value="themanifest" className="mt-0">
-                          <SourceDataDisplay data={agency.themanifestData} />
-                        </TabsContent>
+                        <SourceCard
+                          sourceName="themanifest"
+                          data={agency.themanifestData}
+                          config={sourceConfig.themanifest}
+                        />
                       )}
-                    </Tabs>
+                    </div>
                   </section>
                 )}
               </div>
@@ -441,6 +433,48 @@ export function AgencyDetailsDialog({ agency, open, onOpenChange }: AgencyDetail
         </ScrollArea>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function SourceCard({
+  sourceName,
+  data,
+  config,
+}: {
+  sourceName: string
+  data: any
+  config: { label: string; headerBg: string; borderColor: string; url: string }
+}) {
+  return (
+    <Card className={`border-2 ${config.borderColor} overflow-hidden`}>
+      <div className={`${config.headerBg} px-4 py-3 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <img
+            src={getFaviconUrl(config.url)}
+            alt={config.label}
+            className="w-5 h-5 opacity-90"
+            onError={(e) => {
+              e.currentTarget.style.display = "none"
+            }}
+          />
+          <h4 className="text-white font-semibold text-sm">{config.label}</h4>
+        </div>
+        {data["Profile URL"] && (
+          <a
+            href={data["Profile URL"]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/90 hover:text-white transition-colors flex items-center gap-1 text-xs"
+          >
+            View Profile
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
+      <CardContent className="p-4">
+        <SourceDataDisplay data={data} />
+      </CardContent>
+    </Card>
   )
 }
 
